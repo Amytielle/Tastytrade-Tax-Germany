@@ -1,5 +1,6 @@
 TODO
 - Options
+- ROC (Return of Capital)
 - Export documents
 
 # TastyTrade Transaction Tracker
