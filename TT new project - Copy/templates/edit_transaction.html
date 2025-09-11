@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Transaction - Transaction Management System{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center py-3">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-pencil-square"></i> Edit Transaction
+        </h1>
+        <div>
+            <a href="{{ url_for('view_transaction', rowid=transaction['rowid']) }}" class="btn btn-outline-info">
+                <i class="bi bi-eye"></i> View Details
+            </a>
+            <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="card-title mb-0 h5">
+                        <i class="bi bi-form"></i> Transaction Details
+                        <small class="text-muted">(ID: {{ transaction['rowid'] }})</small>
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form method="POST" onsubmit="return validateForm()" role="form" aria-labelledby="form-title" novalidate>
+                        <div class="visually-hidden" id="form-title">Edit transaction form</div>
+                        <!-- Basic Information -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Basic Information</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Date" class="form-label">Date <span class="text-danger" aria-label="required">*</span></label>
+                                    <input type="datetime-local" class="form-control" id="Date" name="Date" 
+                                           value="{{ transaction['Date'][:16] if transaction['Date'] and transaction['Date']|length >= 16 else transaction['Date'] }}" required aria-describedby="date-help" aria-invalid="false">
+                                    <div id="date-help" class="form-text">When the transaction occurred</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Type" class="form-label">Type <span class="text-danger" aria-label="required">*</span></label>
+                                    <select class="form-select" id="Type" name="Type" required onchange="updateSubTypes()" aria-describedby="type-help" aria-invalid="false">
+                                        <option value="">Select transaction type...</option>
+                                        {% for type in transaction_types %}
+                                        <option value="{{ type }}" {{ 'selected' if transaction['Type'] == type else '' }}>{{ type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="type-help" class="form-text">Choose the transaction type</div>
+                                </div>
+                            </div>
+                            
+                                <div class="col-md-6 mb-3">
+                                    <label for="Sub_Type" class="form-label">Sub Type</label>
+                                    <select class="form-select" id="Sub_Type" name="Sub_Type" aria-describedby="subtype-help">
+                                        <option value="">Select sub type...</option>
+                                        <!-- Options will be populated by JavaScript -->
+                                    </select>
+                                    <div id="subtype-help" class="form-text">Choose the transaction sub-type</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Action" class="form-label">Action</label>
+                                    <select class="form-select" id="Action" name="Action" aria-describedby="action-help">
+                                        <option value="">Select action...</option>
+                                        <option value="BUY_TO_OPEN" {{ 'selected' if transaction['Action'] == 'BUY_TO_OPEN' else '' }}>BUY TO OPEN</option>
+                                        <option value="SELL_TO_CLOSE" {{ 'selected' if transaction['Action'] == 'SELL_TO_CLOSE' else '' }}>SELL TO CLOSE</option>
+                                        <option value="SELL_TO_OPEN" {{ 'selected' if transaction['Action'] == 'SELL_TO_OPEN' else '' }}>SELL TO OPEN</option>
+                                        <option value="BUY_TO_CLOSE" {{ 'selected' if transaction['Action'] == 'BUY_TO_CLOSE' else '' }}>BUY TO CLOSE</option>
+                                        <option value="DEPOSIT" {{ 'selected' if transaction['Action'] == 'DEPOSIT' else '' }}>DEPOSIT</option>
+                                        <option value="WITHDRAWAL" {{ 'selected' if transaction['Action'] == 'WITHDRAWAL' else '' }}>WITHDRAWAL</option>
+                                    </select>
+                                    <div id="action-help" class="form-text">Choose the transaction action</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Symbol and Instrument -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Symbol & Instrument</legend>
+                            
+                            <div class="row">
+                            
+                                <div class="col-md-6 mb-3">
+                                    <label for="Symbol" class="form-label">Symbol</label>
+                                    <input type="text" class="form-control" id="Symbol" name="Symbol" 
+                                           value="{{ transaction['Symbol'] or '' }}" placeholder="e.g., AAPL, SPY" aria-describedby="symbol-help">
+                                    <div id="symbol-help" class="form-text">Stock or option symbol</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Instrument_Type" class="form-label">Instrument Type</label>
+                                    <select class="form-select" id="Instrument_Type" name="Instrument_Type" aria-describedby="instrument-help">
+                                        <option value="">Select instrument type...</option>
+                                        {% for instrument_type in instrument_types %}
+                                        <option value="{{ instrument_type }}" {{ 'selected' if transaction['Instrument_Type'] == instrument_type else '' }}>{{ instrument_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="instrument-help" class="form-text">Choose the instrument type</div>
+                                </div>
+                            
+                                <div class="col-md-6 mb-3">
+                                    <label for="Root_Symbol" class="form-label">Root Symbol</label>
+                                    <input type="text" class="form-control" id="Root_Symbol" name="Root_Symbol" 
+                                           value="{{ transaction['Root_Symbol'] or '' }}" placeholder="e.g., AAPL" aria-describedby="root-symbol-help">
+                                    <div id="root-symbol-help" class="form-text">Base symbol for the instrument</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Underlying_Symbol" class="form-label">Underlying Symbol</label>
+                                    <input type="text" class="form-control" id="Underlying_Symbol" name="Underlying_Symbol" 
+                                           value="{{ transaction['Underlying_Symbol'] or '' }}" placeholder="e.g., AAPL" aria-describedby="underlying-help">
+                                    <div id="underlying-help" class="form-text">Underlying asset symbol</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Financial Details -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Financial Details</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Quantity" class="form-label">Quantity</label>
+                                    <input type="number" step="0.0001" class="form-control" id="Quantity" name="Quantity" 
+                                           value="{{ transaction['Quantity'] or '' }}" placeholder="0.0000" aria-describedby="quantity-help" aria-invalid="false">
+                                    <div id="quantity-help" class="form-text">Number of shares/contracts</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Value" class="form-label">Value</label>
+                                    <input type="number" step="0.01" class="form-control" id="Value" name="Value" 
+                                           value="{{ transaction['Value'] or '' }}" placeholder="0.00" aria-describedby="value-help" aria-invalid="false">
+                                    <div id="value-help" class="form-text">Transaction value in USD</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Average_Price" class="form-label">Average Price</label>
+                                    <input type="number" step="0.0001" class="form-control" id="Average_Price" name="Average_Price" 
+                                           value="{{ transaction['Average_Price'] or '' }}" placeholder="0.0000" aria-describedby="average-price-help" aria-invalid="false">
+                                    <div id="average-price-help" class="form-text">Price per share/contract</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Total" class="form-label">Total</label>
+                                    <input type="number" step="0.01" class="form-control" id="Total" name="Total" 
+                                           value="{{ transaction['Total'] or '' }}" placeholder="0.00" aria-describedby="total-help" aria-invalid="false">
+                                    <div id="total-help" class="form-text">Total amount including fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Commissions" class="form-label">Commissions</label>
+                                    <input type="number" step="0.01" class="form-control" id="Commissions" name="Commissions" 
+                                           value="{{ transaction['Commissions'] or '0' }}" placeholder="0.00" aria-describedby="commissions-help" aria-invalid="false">
+                                    <div id="commissions-help" class="form-text">Commission fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Fees" class="form-label">Fees</label>
+                                    <input type="number" step="0.01" class="form-control" id="Fees" name="Fees" 
+                                           value="{{ transaction['Fees'] or '0' }}" placeholder="0.00" aria-describedby="fees-help" aria-invalid="false">
+                                    <div id="fees-help" class="form-text">Additional fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Currency" class="form-label">Currency</label>
+                                    <select class="form-select" id="Currency" name="Currency" aria-describedby="currency-help">
+                                        <option value="">Select Currency</option>
+                                        {% for currency in currencies %}
+                                        <option value="{{ currency }}" {% if transaction.Currency == currency %}selected{% endif %}>{{ currency }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="currency-help" class="form-text">Transaction currency</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Options Details -->
+                        <fieldset class="mb-4" id="optionsSection" 
+                             style="display: {{ 'block' if transaction['Instrument_Type'] and 'Option' in transaction['Instrument_Type'] else 'none' }}">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Options Details</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="Expiration_Date" class="form-label">Expiration Date</label>
+                                    <input type="date" class="form-control" id="Expiration_Date" name="Expiration_Date" 
+                                           value="{{ transaction['Expiration_Date'] or '' }}" aria-describedby="expiration-help" aria-invalid="false">
+                                    <div id="expiration-help" class="form-text">Option expiration date</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Strike_Price" class="form-label">Strike Price</label>
+                                    <input type="number" step="0.01" class="form-control" id="Strike_Price" name="Strike_Price" 
+                                           value="{{ transaction['Strike_Price'] or '' }}" placeholder="0.00" aria-describedby="strike-price-help" aria-invalid="false">
+                                    <div id="strike-price-help" class="form-text">Option strike price</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Call_or_Put" class="form-label">Call or Put</label>
+                                    <select class="form-select" id="Call_or_Put" name="Call_or_Put" aria-describedby="call-put-help">
+                                        <option value="">Select option type...</option>
+                                        <option value="CALL" {{ 'selected' if transaction['Call_or_Put'] == 'CALL' else '' }}>CALL</option>
+                                        <option value="PUT" {{ 'selected' if transaction['Call_or_Put'] == 'PUT' else '' }}>PUT</option>
+                                    </select>
+                                    <div id="call-put-help" class="form-text">Choose call or put option</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Additional Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-3 border-bottom pb-2">Additional Information</h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Order_Number" class="form-label">Order Number</label>
+                                <input type="number" class="form-control" id="Order_Number" name="Order_Number" 
+                                       value="{{ transaction['Order_Number'] or '' }}" placeholder="Order ID">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Multiplier" class="form-label">Multiplier</label>
+                                <input type="number" class="form-control" id="Multiplier" name="Multiplier" 
+                                       value="{{ transaction['Multiplier'] or '100' }}" placeholder="100">
+                                <div class="form-text">Contract multiplier (usually 100 for options)</div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                <label for="Description" class="form-label">Description</label>
+                                <textarea class="form-control" id="Description" name="Description" rows="3" 
+                                          placeholder="Transaction description...">{{ transaction['Description'] or '' }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-between" role="group" aria-label="Form actions">
+                                    <div role="group" aria-label="Navigation actions">
+                                        <a href="{{ url_for('view_transaction', rowid=transaction['rowid']) }}" class="btn btn-outline-info" role="button" aria-label="View transaction details">
+                                            <i class="bi bi-eye" aria-hidden="true"></i> View Details
+                                        </a>
+                                        <a href="{{ url_for('transactions') }}" class="btn btn-secondary ms-2" role="button" aria-label="Cancel editing and return to transactions list">
+                                            <i class="bi bi-x-circle" aria-hidden="true"></i> Cancel
+                                        </a>
+                                    </div>
+                                    <div role="group" aria-label="Form submission actions">
+                                        <button type="reset" class="btn btn-outline-warning me-2" onclick="resetForm()" aria-label="Reset form to original values">
+                                            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Reset Changes
+                                        </button>
+                                        <button type="submit" class="btn btn-primary" aria-label="Save changes to transaction">
+                                            <i class="bi bi-check-circle" aria-hidden="true"></i> Update Transaction
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Store original form values
+let originalValues = {};
+
+// Sub-type mappings
+const subTypeMap = {
+    'Trade': ['Buy', 'Sell', 'Assignment', 'Exercise'],
+    'Money Movement': ['Deposit', 'Withdrawal', 'Interest', 'Dividend', 'Fee'],
+    'Receive Deliver': ['Stock Assignment', 'Stock Exercise', 'Expiration']
+};
+
+function updateSubTypes() {
+            try {
+                const typeSelect = document.getElementById('Type');
+                const subTypeSelect = document.getElementById('Sub_Type');
+                
+                if (!typeSelect || !subTypeSelect) {
+                    console.error('Required elements not found');
+                    return;
+                }
+                
+                const selectedType = typeSelect.value;
+                const currentSubType = subTypeSelect.value; // Preserve current selection
+                
+                // Clear existing options
+                subTypeSelect.innerHTML = '<option value="">Select Sub Type</option>';
+                
+                // Use server-side sub-type mapping
+                const subTypes = {{ sub_type_mapping | tojson }};
+                
+                if (selectedType && subTypes[selectedType]) {
+                    subTypes[selectedType].forEach(subType => {
+                        const option = document.createElement('option');
+                        option.value = subType;
+                        option.textContent = subType;
+                        if (subType === currentSubType) {
+                            option.selected = true;
+                        }
+                        subTypeSelect.appendChild(option);
+                    });
+
+         // Client-side validation
+         function validateForm() {
+             let isValid = true;
+             
+             // Clear previous errors
+             document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+             document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+             
+             // Required fields validation
+             const requiredFields = [
+                 { id: 'date', name: 'Date' },
+                 { id: 'type', name: 'Type' },
+                 { id: 'sub_type', name: 'Sub Type' },
+                 { id: 'symbol', name: 'Symbol' },
+                 { id: 'instrument_type', name: 'Instrument Type' },
+                 { id: 'currency', name: 'Currency' }
+             ];
+             
+             requiredFields.forEach(field => {
+                 const element = document.getElementById(field.id);
+                 if (element && !element.value.trim()) {
+                     showFieldError(element, field.name + ' is required');
+                     isValid = false;
+                 }
+             });
+             
+             // Business logic validation for Trade transactions
+             const typeEl = document.getElementById('type');
+             if (typeEl && typeEl.value === 'Trade') {
+                 const quantityEl = document.getElementById('quantity');
+                 const priceEl = document.getElementById('price');
+                 
+                 if (!quantityEl.value || parseFloat(quantityEl.value) <= 0) {
+                     showFieldError(quantityEl, 'Quantity must be greater than 0 for trades');
+                     isValid = false;
+                 }
+                 
+                 if (!priceEl.value || parseFloat(priceEl.value) <= 0) {
+                     showFieldError(priceEl, 'Price must be greater than 0 for trades');
+                     isValid = false;
+                 }
+             }
+             
+             // Options-specific validation
+             const instrumentTypeEl = document.getElementById('instrument_type');
+             if (instrumentTypeEl && instrumentTypeEl.value.toLowerCase().includes('option')) {
+                 const strikePriceEl = document.getElementById('strike_price');
+                 const expirationDateEl = document.getElementById('expiration_date');
+                 
+                 if (!strikePriceEl.value || parseFloat(strikePriceEl.value) <= 0) {
+                     showFieldError(strikePriceEl, 'Strike price is required for options');
+                     isValid = false;
+                 }
+                 
+                 if (!expirationDateEl.value) {
+                     showFieldError(expirationDateEl, 'Expiration date is required for options');
+                     isValid = false;
+                 }
+             }
+             
+             // Numeric field validation
+             const numericFields = ['quantity', 'price', 'fees', 'strike_price'];
+             numericFields.forEach(fieldId => {
+                 const element = document.getElementById(fieldId);
+                 if (element && element.value && isNaN(parseFloat(element.value))) {
+                     showFieldError(element, 'Must be a valid number');
+                     isValid = false;
+                 }
+             });
+             
+             return isValid;
+         }
+         
+         function showFieldError(element, message) {
+             element.classList.add('is-invalid');
+             const feedback = document.createElement('div');
+             feedback.className = 'invalid-feedback';
+             feedback.textContent = message;
+             element.parentNode.appendChild(feedback);
+         }
+         
+         // Real-time validation
+         document.addEventListener('DOMContentLoaded', function() {
+             // Add event listeners for real-time validation
+             const form = document.querySelector('form');
+             if (form) {
+                 form.addEventListener('input', function(e) {
+                     if (e.target.classList.contains('is-invalid')) {
+                         e.target.classList.remove('is-invalid');
+                         const feedback = e.target.parentNode.querySelector('.invalid-feedback');
+                         if (feedback) feedback.remove();
+                     }
+                 });
+             }
+         });
+                }
+            } catch (error) {
+                console.error('Error in updateSubTypes:', error);
+            }
+        }
+        
+        function toggleOptionsSection() {
+            try {
+                const instrumentTypeSelect = document.getElementById('Instrument_Type');
+                const optionsSection = document.getElementById('optionsSection');
+                
+                if (!instrumentTypeSelect || !optionsSection) {
+                    return;
+                }
+                
+                const instrumentType = instrumentTypeSelect.value;
+                if (instrumentType && instrumentType.toLowerCase().includes('option')) {
+                    optionsSection.style.display = 'block';
+                } else {
+                    optionsSection.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error in toggleOptionsSection:', error);
+            }
+        }
+
+// Show/hide options section based on instrument type
+document.getElementById('Instrument_Type').addEventListener('change', function() {
+    const optionsSection = document.getElementById('optionsSection');
+    if (this.value && this.value.includes('Option')) {
+        optionsSection.style.display = 'block';
+    } else {
+        optionsSection.style.display = 'none';
+    }
+});
+
+// Auto-calculate total when values change
+function calculateTotal() {
+    try {
+        const valueEl = document.getElementById('Value');
+        const commissionsEl = document.getElementById('Commissions');
+        const feesEl = document.getElementById('Fees');
+        const totalEl = document.getElementById('Total');
+        
+        if (!valueEl || !commissionsEl || !feesEl || !totalEl) {
+            console.error('Required calculation elements not found');
+            return;
+        }
+        
+        const value = parseFloat(valueEl.value) || 0;
+        const commissions = parseFloat(commissionsEl.value) || 0;
+        const fees = parseFloat(feesEl.value) || 0;
+        
+        const total = value + commissions + fees;
+        totalEl.value = total.toFixed(2);
+    } catch (error) {
+        console.error('Error calculating total:', error);
+    }
+}
+
+// Add event listeners for auto-calculation
+['Value', 'Commissions', 'Fees'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.addEventListener('input', calculateTotal);
+    } else {
+        console.warn(`Element with id '${id}' not found for auto-calculation`);
+    }
+});
+
+// Store original form values and initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Store original values for reset functionality
+    const form = document.querySelector('form');
+    const formData = new FormData(form);
+    for (let [key, value] of formData.entries()) {
+        originalValues[key] = value;
+    }
+    
+    // Initialize sub-types based on current type
+    updateSubTypes();
+});
+
+// Reset form to original values
+function resetForm() {
+    if (confirm('Are you sure you want to reset all changes? This will restore the original values.')) {
+        try {
+            // Reset all form fields to original values
+            for (const [key, value] of Object.entries(originalValues)) {
+                const element = document.getElementById(key) || document.querySelector(`[name="${key}"]`);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = value === 'on';
+                    } else {
+                        element.value = value;
+                    }
+                }
+            }
+            
+            // Re-initialize sub-types and options section
+            updateSubTypes();
+            
+            const instrumentTypeEl = document.getElementById('Instrument_Type');
+            const optionsSection = document.getElementById('optionsSection');
+            
+            if (instrumentTypeEl && optionsSection) {
+                const instrumentType = instrumentTypeEl.value;
+                if (instrumentType && instrumentType.includes('Option')) {
+                    optionsSection.style.display = 'block';
+                } else {
+                    optionsSection.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Error resetting form:', error);
+            alert('An error occurred while resetting the form. Please refresh the page.');
+        }
+    }
+}
+</script>
+{% endblock %}

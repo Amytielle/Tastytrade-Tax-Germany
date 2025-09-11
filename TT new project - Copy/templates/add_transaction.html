@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block title %}Add Transaction - Transaction Management System{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center py-3">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-plus-circle"></i> Add New Transaction
+        </h1>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="card-title mb-0 h5">
+                        <i class="bi bi-form"></i> Transaction Details
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('add_transaction') }}" class="needs-validation" novalidate onsubmit="return validateForm()" role="form" aria-labelledby="form-title">
+                        <div class="visually-hidden" id="form-title">Add new transaction form</div>
+                        <!-- Basic Information -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Basic Information</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Date" class="form-label">Date <span class="text-danger" aria-label="required">*</span></label>
+                                    <input type="datetime-local" class="form-control" id="Date" name="Date" required aria-describedby="date-help" aria-invalid="false">
+                                    <div id="date-help" class="form-text">When the transaction occurred</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Type" class="form-label">Type <span class="text-danger" aria-label="required">*</span></label>
+                                    <select class="form-select" id="Type" name="Type" required onchange="updateSubTypes()" aria-describedby="type-help" aria-invalid="false">
+                                        <option value="">Select transaction type...</option>
+                                        {% for type in transaction_types %}
+                                        <option value="{{ type }}">{{ type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="type-help" class="form-text">Choose the transaction type</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Sub_Type" class="form-label">Sub Type</label>
+                                    <select class="form-select" id="Sub_Type" name="Sub_Type" aria-describedby="sub-type-help" aria-invalid="false">
+                                        <option value="">Select sub type...</option>
+                                    </select>
+                                    <div id="sub-type-help" class="form-text">Choose the transaction sub-type</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Action" class="form-label">Action</label>
+                                    <select class="form-select" id="Action" name="Action" aria-describedby="action-help" aria-invalid="false">
+                                        <option value="">Select action...</option>
+                                        <option value="BUY_TO_OPEN">BUY TO OPEN</option>
+                                        <option value="SELL_TO_CLOSE">SELL TO CLOSE</option>
+                                        <option value="SELL_TO_OPEN">SELL TO OPEN</option>
+                                        <option value="BUY_TO_CLOSE">BUY TO CLOSE</option>
+                                        <option value="DEPOSIT">DEPOSIT</option>
+                                        <option value="WITHDRAWAL">WITHDRAWAL</option>
+                                    </select>
+                                    <div id="action-help" class="form-text">Select the transaction action</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Symbol and Instrument -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Symbol & Instrument</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Symbol" class="form-label">Symbol <span class="text-danger" aria-label="required">*</span></label>
+                                    <input type="text" class="form-control" id="Symbol" name="Symbol" required placeholder="e.g., AAPL, SPY" aria-describedby="symbol-help" aria-invalid="false">
+                                    <div id="symbol-help" class="form-text">Stock or option symbol</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Instrument_Type" class="form-label">Instrument Type <span class="text-danger" aria-label="required">*</span></label>
+                                    <select class="form-select" id="Instrument_Type" name="Instrument_Type" required onchange="toggleOptionsSection()" aria-describedby="instrument-help" aria-invalid="false">
+                                        <option value="">Select instrument type...</option>
+                                        {% for instrument_type in instrument_types %}
+                                        <option value="{{ instrument_type }}">{{ instrument_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="instrument-help" class="form-text">Type of financial instrument</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Root_Symbol" class="form-label">Root Symbol</label>
+                                <input type="text" class="form-control" id="Root_Symbol" name="Root_Symbol" placeholder="e.g., AAPL" aria-describedby="root-symbol-help" aria-invalid="false">
+                                <div id="root-symbol-help" class="form-text">Base symbol for options</div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Underlying_Symbol" class="form-label">Underlying Symbol</label>
+                                <input type="text" class="form-control" id="Underlying_Symbol" name="Underlying_Symbol" placeholder="e.g., AAPL" aria-describedby="underlying-symbol-help" aria-invalid="false">
+                                <div id="underlying-symbol-help" class="form-text">Underlying asset symbol</div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Financial Details -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Financial Details</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="Quantity" class="form-label">Quantity</label>
+                                    <input type="number" step="0.0001" class="form-control" id="Quantity" name="Quantity" placeholder="0.0000" aria-describedby="quantity-help" aria-invalid="false">
+                                    <div id="quantity-help" class="form-text">Number of shares/contracts</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Value" class="form-label">Value</label>
+                                    <input type="number" step="0.01" class="form-control" id="Value" name="Value" placeholder="0.00" aria-describedby="value-help" aria-invalid="false">
+                                    <div id="value-help" class="form-text">Transaction value in USD</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Average_Price" class="form-label">Average Price</label>
+                                    <input type="number" step="0.0001" class="form-control" id="Average_Price" name="Average_Price" placeholder="0.0000" aria-describedby="average-price-help" aria-invalid="false">
+                                    <div id="average-price-help" class="form-text">Price per share/contract</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="Total" class="form-label">Total</label>
+                                    <input type="number" step="0.01" class="form-control" id="Total" name="Total" placeholder="0.00" aria-describedby="total-help" aria-invalid="false">
+                                    <div id="total-help" class="form-text">Total amount including fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Commissions" class="form-label">Commissions</label>
+                                    <input type="number" step="0.01" class="form-control" id="Commissions" name="Commissions" placeholder="0.00" value="0" aria-describedby="commissions-help" aria-invalid="false">
+                                    <div id="commissions-help" class="form-text">Commission fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Fees" class="form-label">Fees</label>
+                                    <input type="number" step="0.01" class="form-control" id="Fees" name="Fees" placeholder="0.00" value="0" aria-describedby="fees-help" aria-invalid="false">
+                                    <div id="fees-help" class="form-text">Additional fees</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Currency" class="form-label">Currency</label>
+                                    <select class="form-select" id="Currency" name="Currency" aria-describedby="currency-help" aria-invalid="false">
+                                        {% for currency in currencies %}
+                                        <option value="{{ currency }}" {% if currency == 'USD' %}selected{% endif %}>{{ currency }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="currency-help" class="form-text">Transaction currency</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Options Details -->
+                        <fieldset class="mb-4" id="optionsSection" style="display: none;" aria-labelledby="options-legend">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2" id="options-legend">Options Details</legend>
+                            
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="Expiration_Date" class="form-label">Expiration Date</label>
+                                    <input type="date" class="form-control" id="Expiration_Date" name="Expiration_Date" aria-describedby="expiration-help" aria-invalid="false">
+                                    <div id="expiration-help" class="form-text">Option expiration date</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Strike_Price" class="form-label">Strike Price</label>
+                                    <input type="number" step="0.01" class="form-control" id="Strike_Price" name="Strike_Price" placeholder="0.00" aria-describedby="strike-price-help" aria-invalid="false">
+                                    <div id="strike-price-help" class="form-text">Option strike price</div>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="Call_or_Put" class="form-label">Call or Put</label>
+                                    <select class="form-select" id="Call_or_Put" name="Call_or_Put" aria-describedby="call-put-help" aria-invalid="false">
+                                        <option value="">Select option type...</option>
+                                        <option value="CALL">CALL</option>
+                                        <option value="PUT">PUT</option>
+                                    </select>
+                                    <div id="call-put-help" class="form-text">Call or Put option type</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Additional Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-3 border-bottom pb-2">Additional Information</h6>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Order_Number" class="form-label">Order Number</label>
+                                <input type="number" class="form-control" id="Order_Number" name="Order_Number" placeholder="Order ID">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="Multiplier" class="form-label">Multiplier</label>
+                                <input type="number" class="form-control" id="Multiplier" name="Multiplier" placeholder="100" value="100">
+                                <div class="form-text">Contract multiplier (usually 100 for options)</div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                <label for="Description" class="form-label">Description</label>
+                                <textarea class="form-control" id="Description" name="Description" rows="3" placeholder="Transaction description..."></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-between" role="group" aria-label="Form actions">
+                                    <a href="{{ url_for('transactions') }}" class="btn btn-secondary" role="button" aria-label="Cancel and go back to transactions list">
+                                        <i class="bi bi-x-circle" aria-hidden="true"></i> Cancel
+                                    </a>
+                                    <div role="group" aria-label="Form submission actions">
+                                        <button type="reset" class="btn btn-outline-warning me-2" aria-label="Reset form to initial state">
+                                            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Reset
+                                        </button>
+                                        <button type="submit" class="btn btn-success" aria-label="Submit transaction form">
+                                            <i class="bi bi-check-circle" aria-hidden="true"></i> Add Transaction
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sub-type mappings
+const subTypeMap = {
+    'Trade': ['Buy', 'Sell', 'Assignment', 'Exercise'],
+    'Money Movement': ['Deposit', 'Withdrawal', 'Interest', 'Dividend', 'Fee'],
+    'Receive Deliver': ['Stock Assignment', 'Stock Exercise', 'Expiration']
+};
+
+function updateSubTypes() {
+            try {
+                const typeSelect = document.getElementById('Type');
+                const subTypeSelect = document.getElementById('Sub_Type');
+                
+                if (!typeSelect || !subTypeSelect) {
+                    console.error('Required elements not found');
+                    return;
+                }
+                
+                const selectedType = typeSelect.value;
+                
+                // Clear existing options
+                subTypeSelect.innerHTML = '<option value="">Select Sub Type</option>';
+                
+                // Use server-side sub-type mapping
+                const subTypes = JSON.parse('{{ sub_type_mapping | tojson | safe }}');
+                
+                if (selectedType && subTypes[selectedType]) {
+                    subTypes[selectedType].forEach(subType => {
+                        const option = document.createElement('option');
+                        option.value = subType;
+                        option.textContent = subType;
+                        subTypeSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error in updateSubTypes:', error);
+            }
+        }
+        
+        function toggleOptionsSection() {
+            try {
+                const instrumentTypeSelect = document.getElementById('Instrument_Type');
+                const optionsSection = document.getElementById('optionsSection');
+                
+                if (!instrumentTypeSelect || !optionsSection) {
+                    return;
+                }
+                
+                const instrumentType = instrumentTypeSelect.value;
+                if (instrumentType && instrumentType.toLowerCase().includes('option')) {
+                    optionsSection.style.display = 'block';
+                } else {
+                    optionsSection.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error in toggleOptionsSection:', error);
+            }
+        }
+        
+        function validateForm() {
+            let isValid = true;
+            const errors = [];
+            
+            // Clear previous validation states
+            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+            
+            // Required field validation
+            const requiredFields = {
+                'Date': 'Date is required',
+                'Type': 'Transaction Type is required',
+                'Sub_Type': 'Sub Type is required'
+            };
+            
+            for (const [fieldId, errorMsg] of Object.entries(requiredFields)) {
+                const field = document.getElementById(fieldId);
+                if (field && !field.value.trim()) {
+                    showFieldError(field, errorMsg);
+                    isValid = false;
+                }
+            }
+            
+            // Business logic validation
+            const typeField = document.getElementById('Type');
+            if (typeField && typeField.value === 'Trade') {
+                const symbolField = document.getElementById('Symbol');
+                const actionField = document.getElementById('Action');
+                
+                if (!symbolField || !symbolField.value.trim()) {
+                    showFieldError(symbolField, 'Symbol is required for Trade transactions');
+                    isValid = false;
+                }
+                if (!actionField || !actionField.value.trim()) {
+                    showFieldError(actionField, 'Action is required for Trade transactions');
+                    isValid = false;
+                }
+            }
+            
+            // Options validation
+            const instrumentTypeField = document.getElementById('Instrument_Type');
+            if (instrumentTypeField && instrumentTypeField.value.toLowerCase().includes('option')) {
+                const expirationField = document.getElementById('Expiration_Date');
+                const strikePriceField = document.getElementById('Strike_Price');
+                const callPutField = document.getElementById('Call_or_Put');
+                
+                if (!expirationField || !expirationField.value.trim()) {
+                    showFieldError(expirationField, 'Expiration Date is required for Options');
+                    isValid = false;
+                }
+                if (!strikePriceField || !strikePriceField.value.trim()) {
+                    showFieldError(strikePriceField, 'Strike Price is required for Options');
+                    isValid = false;
+                }
+                if (!callPutField || !callPutField.value.trim()) {
+                    showFieldError(callPutField, 'Call or Put selection is required for Options');
+                    isValid = false;
+                }
+            }
+            
+            // Numeric field validation
+            const numericFields = ['Quantity', 'Value', 'Average_Price', 'Total', 'Commissions', 'Fees', 'Strike_Price'];
+            numericFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field && field.value.trim() && isNaN(parseFloat(field.value))) {
+                    showFieldError(field, `${fieldId.replace('_', ' ')} must be a valid number`);
+                    isValid = false;
+                }
+            });
+            
+            const multiplierField = document.getElementById('Multiplier');
+            if (multiplierField && multiplierField.value.trim() && isNaN(parseInt(multiplierField.value))) {
+                showFieldError(multiplierField, 'Multiplier must be a valid integer');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        function showFieldError(field, message) {
+            if (!field) return;
+            
+            field.classList.add('is-invalid');
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            feedback.textContent = message;
+            
+            field.parentNode.appendChild(feedback);
+        }
+        
+        // Real-time validation
+         document.addEventListener('DOMContentLoaded', function() {
+             // Add event listeners for real-time validation
+             const form = document.querySelector('form');
+             if (form) {
+                 form.addEventListener('input', function(e) {
+                     if (e.target.classList.contains('is-invalid')) {
+                         e.target.classList.remove('is-invalid');
+                         const feedback = e.target.parentNode.querySelector('.invalid-feedback');
+                         if (feedback) feedback.remove();
+                     }
+                 });
+             }
+         });
+
+// Show options section when instrument type changes
+document.getElementById('Instrument_Type').addEventListener('change', function() {
+    const optionsSection = document.getElementById('optionsSection');
+    if (this.value && this.value.includes('Option')) {
+        optionsSection.style.display = 'block';
+    } else {
+        optionsSection.style.display = 'none';
+    }
+});
+
+// Auto-calculate total when values change
+function calculateTotal() {
+    try {
+        const valueEl = document.getElementById('Value');
+        const commissionsEl = document.getElementById('Commissions');
+        const feesEl = document.getElementById('Fees');
+        const totalEl = document.getElementById('Total');
+        
+        if (!valueEl || !commissionsEl || !feesEl || !totalEl) {
+            console.error('Required calculation elements not found');
+            return;
+        }
+        
+        const value = parseFloat(valueEl.value) || 0;
+        const commissions = parseFloat(commissionsEl.value) || 0;
+        const fees = parseFloat(feesEl.value) || 0;
+        
+        const total = value + commissions + fees;
+        totalEl.value = total.toFixed(2);
+    } catch (error) {
+        console.error('Error calculating total:', error);
+    }
+}
+
+// Add event listeners for auto-calculation
+['Value', 'Commissions', 'Fees'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.addEventListener('input', calculateTotal);
+    } else {
+        console.warn(`Element with id '${id}' not found for auto-calculation`);
+    }
+});
+
+// Set default date to current date/time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('Date').value = localDateTime;
+});
+</script>
+{% endblock %}

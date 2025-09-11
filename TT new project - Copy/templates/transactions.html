@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - Transaction Management System{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center py-3">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-table"></i> Transactions
+            <span class="badge bg-secondary">{{ "{:,}".format(total_records) }}</span>
+        </h1>
+        <a href="{{ url_for('add_transaction') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add New Transaction
+        </a>
+    </div>
+    
+    <!-- Filters and Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Search symbol, description, action...">
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="type" class="form-label">Transaction Type</label>
+                    <select class="form-select" id="type" name="type">
+                        <option value="">All Types</option>
+                        {% for type_option in types %}
+                            <option value="{{ type_option }}" {% if filter_type == type_option %}selected{% endif %}>
+                                {{ type_option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="symbol" class="form-label">Symbol</label>
+                    <select class="form-select" id="symbol" name="symbol">
+                        <option value="">All Symbols</option>
+                        {% for symbol_option in symbols %}
+                            <option value="{{ symbol_option }}" {% if filter_symbol == symbol_option %}selected{% endif %}>
+                                {{ symbol_option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="per_page" class="form-label">Per Page</label>
+                    <select class="form-select" id="per_page" name="per_page">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                </div>
+                
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results Info -->
+    {% if total_records > 0 %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <small class="text-muted">
+                    Showing {{ ((page - 1) * per_page + 1) }} to {{ [page * per_page, total_records]|min }} 
+                    of {{ "{:,}".format(total_records) }} transactions
+                </small>
+            </div>
+            
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+                <nav aria-label="Transaction pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('transactions', page=page-1, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for p in range([1, page-2]|max, [total_pages, page+2]|min + 1) %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('transactions', page=p, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('transactions', page=page+1, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <!-- Transactions Table -->
+    {% if transactions %}
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Symbol</th>
+                            <th>Asset Category</th>
+                            <th>Action</th>
+                            <th>Description</th>
+                            <th class="text-end">Quantity</th>
+                            <th class="text-end">Value</th>
+                            <th class="text-end">Total</th>
+                            <th>Currency</th>
+                            <th class="text-end">USD/EUR Rate</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ transaction['Date'][:10] if transaction['Date'] else 'N/A' }}<br>
+                                        {{ transaction['Date'][11:16] if transaction['Date'] and transaction['Date']|length > 10 else '' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if transaction['Type'] == 'Trade' %}
+                                        <span class="badge bg-primary">{{ transaction['Type'] }}</span>
+                                    {% elif transaction['Type'] == 'Money Movement' %}
+                                        <span class="badge bg-success">{{ transaction['Type'] }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ transaction['Type'] or 'Unknown' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ transaction['Symbol'] or '-' }}</strong>
+                                </td>
+                                <td>
+                                    {% if transaction['Asset_Category'] %}
+                                        {% if transaction['Asset_Category'] == 'Stock' %}
+                                            <span class="badge bg-info">{{ transaction['Asset_Category'] }}</span>
+                                        {% elif transaction['Asset_Category'] == 'Option' %}
+                                            <span class="badge bg-warning">{{ transaction['Asset_Category'] }}</span>
+                                        {% elif transaction['Asset_Category'] == 'ETF' %}
+                                            <span class="badge bg-success">{{ transaction['Asset_Category'] }}</span>
+                                        {% elif transaction['Asset_Category'] == 'Bond' %}
+                                            <span class="badge bg-primary">{{ transaction['Asset_Category'] }}</span>
+                                        {% elif transaction['Asset_Category'] == 'Cryptocurrency' %}
+                                            <span class="badge bg-dark">{{ transaction['Asset_Category'] }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ transaction['Asset_Category'] }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ transaction['Action'] or '-' }}</small>
+                                </td>
+                                <td>
+                                    <span class="text-truncate d-inline-block" style="max-width: 250px;" title="{{ transaction['Description'] or '' }}">
+                                        {{ transaction['Description'] or '-' }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction['Quantity'] %}
+                                        {{ "{:,.2f}".format(transaction['Quantity']) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction['Value'] %}
+                                        <span class="{% if transaction['Value'] > 0 %}text-success{% elif transaction['Value'] < 0 %}text-danger{% endif %}">
+                                            ${{ "{:,.2f}".format(transaction['Value']) }}
+                                        </span>
+                                        {% if transaction['Value_EUR'] %}
+                                            <br><small class="text-muted">€{{ "{:,.2f}".format(transaction['Value_EUR']) }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction['Total'] %}
+                                        <strong class="{% if transaction['Total'] > 0 %}text-success{% elif transaction['Total'] < 0 %}text-danger{% endif %}">
+                                            ${{ "{:,.2f}".format(transaction['Total']) }}
+                                        </strong>
+                                        {% if transaction['Total_EUR'] %}
+                                            <br><small class="text-muted">€{{ "{:,.2f}".format(transaction['Total_EUR']) }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ transaction['Currency'] or '-' }}</small>
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction['USD_EUR_Rate'] %}
+                                        <small class="text-muted">{{ "{:.4f}".format(transaction['USD_EUR_Rate']) }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('view_transaction', rowid=transaction['rowid']) }}" 
+                                           class="btn btn-outline-info" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_transaction', rowid=transaction['rowid']) }}" 
+                                           class="btn btn-outline-warning" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="confirmDelete({{ transaction['rowid'] }})" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Bottom Pagination -->
+        {% if total_pages > 1 %}
+            <div class="d-flex justify-content-center mt-4">
+                <nav aria-label="Transaction pagination">
+                    <ul class="pagination">
+                        {% if has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('transactions', page=page-1, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    <i class="bi bi-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for p in range([1, page-2]|max, [total_pages, page+2]|min + 1) %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('transactions', page=p, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('transactions', page=page+1, per_page=per_page, search=search, type=filter_type, symbol=filter_symbol) }}">
+                                    Next <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <div class="display-1 text-muted mb-3">
+                    <i class="bi bi-inbox"></i>
+                </div>
+                <h4>No transactions found</h4>
+                <p class="text-muted mb-4">No transactions match your current filters.</p>
+                <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-clockwise"></i> Clear Filters
+                </a>
+                <a href="{{ url_for('add_transaction') }}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Add First Transaction
+                </a>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Clear Database Button -->
+    <div class="d-flex justify-content-center mt-5 mb-4">
+        <button type="button" class="btn btn-danger btn-lg" onclick="confirmClearDatabase()">
+            <i class="bi bi-trash3"></i> Clear Database
+        </button>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-danger"></i> Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this transaction? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Transaction
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Database Confirmation Modal -->
+<div class="modal fade" id="clearDatabaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-danger"></i> Clear Entire Database
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Warning!</strong> This will permanently delete ALL transactions from the database.
+                </div>
+                <p>Are you absolutely sure you want to clear the entire database? This action cannot be undone and will remove all your transaction data.</p>
+                <p class="text-muted">Type <strong>DELETE</strong> to confirm:</p>
+                <input type="text" id="confirmInput" class="form-control" placeholder="Type DELETE to confirm">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="clearDatabaseForm" method="POST" style="display: inline;">
+                    <button type="submit" id="clearDatabaseBtn" class="btn btn-danger" disabled>
+                        <i class="bi bi-trash3"></i> Clear Database
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(rowid) {
+    const deleteForm = document.getElementById('deleteForm');
+    deleteForm.action = `/transaction/delete/${rowid}`;
+    
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+function confirmClearDatabase() {
+    const clearDatabaseModal = new bootstrap.Modal(document.getElementById('clearDatabaseModal'));
+    clearDatabaseModal.show();
+}
+
+// Auto-submit form on filter changes
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelects = document.querySelectorAll('#type, #symbol, #per_page');
+    
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+    
+    // Add search on Enter key
+    const searchInput = document.getElementById('search');
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            this.form.submit();
+        }
+    });
+    
+    // Clear database confirmation input validation
+    const confirmInput = document.getElementById('confirmInput');
+    const clearDatabaseBtn = document.getElementById('clearDatabaseBtn');
+    const clearDatabaseForm = document.getElementById('clearDatabaseForm');
+    
+    if (confirmInput && clearDatabaseBtn) {
+        confirmInput.addEventListener('input', function() {
+            if (this.value === 'DELETE') {
+                clearDatabaseBtn.disabled = false;
+                clearDatabaseForm.action = '/clear_database';
+            } else {
+                clearDatabaseBtn.disabled = true;
+            }
+        });
+        
+        // Reset input when modal is closed
+        document.getElementById('clearDatabaseModal').addEventListener('hidden.bs.modal', function() {
+            confirmInput.value = '';
+            clearDatabaseBtn.disabled = true;
+        });
+    }
+});
+</script>
+{% endblock %}

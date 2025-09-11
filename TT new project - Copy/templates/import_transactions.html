@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Import Transactions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="mb-0 h2">
+                        <i class="bi bi-upload" aria-hidden="true"></i> Import Transactions
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" role="form" aria-labelledby="form-title" novalidate>
+                        <div class="visually-hidden" id="form-title">Import transactions from CSV file</div>
+                        
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">File Upload</legend>
+                            
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label for="file" class="form-label">CSV File <span class="text-danger" aria-label="required">*</span></label>
+                                    <input type="file" class="form-control" id="file" name="file" accept=".csv" required aria-describedby="file-help" aria-invalid="false">
+                                    <div id="file-help" class="form-text">Select a CSV file containing transaction data</div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">CSV Format Requirements</legend>
+                            
+                            <div class="alert alert-info" role="region" aria-label="CSV format information">
+                                <h6 class="alert-heading"><i class="bi bi-info-circle" aria-hidden="true"></i> Expected CSV Format</h6>
+                                <p class="mb-2">Your CSV file should contain the following columns (in any order):</p>
+                                <ul class="mb-2">
+                                    <li><strong>Date</strong> - Transaction date (YYYY-MM-DD format)</li>
+                                    <li><strong>Type</strong> - Transaction type (Trade, Dividend, etc.)</li>
+                                    <li><strong>Sub_Type</strong> - Sub-type of transaction</li>
+                                    <li><strong>Symbol</strong> - Stock or option symbol</li>
+                                    <li><strong>Instrument_Type</strong> - Type of instrument</li>
+                                    <li><strong>Action</strong> - Transaction action (BUY_TO_OPEN, SELL_TO_CLOSE, etc.)</li>
+                                    <li><strong>Quantity</strong> - Number of shares/contracts</li>
+                                    <li><strong>Value</strong> - Transaction value</li>
+                                    <li><strong>Average_Price</strong> - Price per share/contract</li>
+                                    <li><strong>Total</strong> - Total amount</li>
+                                    <li><strong>Commissions</strong> - Commission fees</li>
+                                    <li><strong>Fees</strong> - Additional fees</li>
+                                    <li><strong>Currency</strong> - Transaction currency</li>
+                                    <li><strong>Root_Symbol</strong> - Root symbol (for options)</li>
+                                    <li><strong>Underlying_Symbol</strong> - Underlying symbol (for options)</li>
+                                    <li><strong>Expiration_Date</strong> - Option expiration date</li>
+                                    <li><strong>Strike_Price</strong> - Option strike price</li>
+                                    <li><strong>Call_or_Put</strong> - Option type (CALL/PUT)</li>
+                                    <li><strong>Description</strong> - Transaction description</li>
+                                </ul>
+                                <p class="mb-0"><strong>Note:</strong> Empty cells or cells with "None" will be treated as null values.</p>
+                            </div>
+                        </fieldset>
+                        
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3 border-bottom pb-2">Import Options</legend>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="skipErrors" name="skipErrors" checked aria-describedby="skip-errors-help">
+                                        <label class="form-check-label" for="skipErrors">
+                                            Skip rows with errors and continue importing
+                                        </label>
+                                        <div id="skip-errors-help" class="form-text">When enabled, rows with validation errors will be skipped and the import will continue with valid rows.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+                        
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between" role="group" aria-label="Form actions">
+                                    <a href="{{ url_for('index') }}" class="btn btn-secondary" role="button" aria-label="Cancel import and return to transactions list">
+                                        <i class="bi bi-x-circle" aria-hidden="true"></i> Cancel
+                                    </a>
+                                    <div role="group" aria-label="Import actions">
+                                        <button type="reset" class="btn btn-outline-secondary me-2" aria-label="Clear selected file">
+                                            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Clear
+                                        </button>
+                                        <button type="submit" class="btn btn-primary" aria-label="Import transactions from selected file">
+                                            <i class="bi bi-upload" aria-hidden="true"></i> Import Transactions
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Error Details Section -->
+    {% if import_errors %}
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-10">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0 h4">
+                        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Import Errors Details
+                    </h3>
+                    <p class="mb-0 mt-2">
+                        {% if skip_errors %}
+                            Found {{ error_count }} validation errors. {{ imported_count }} transactions were successfully imported, and invalid rows were skipped.
+                        {% else %}
+                            Import stopped due to validation errors. Enable "Skip rows with errors" to continue importing valid rows.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Tip:</strong> Review the errors below to fix your CSV file, or enable "Skip rows with errors" to import only valid rows.
+                    </div>
+                    
+                    <div class="error-list" style="max-height: 400px; overflow-y: auto;">
+                        <ol class="list-group list-group-numbered">
+                            {% for error in import_errors %}
+                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold text-danger">{{ error }}</div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    
+                    {% if import_errors|length > 20 %}
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Showing all {{ import_errors|length }} errors. Consider fixing the most common issues first.
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('import_transactions') }}" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Try Again
+                        </a>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
+                            <i class="bi bi-house" aria-hidden="true"></i> Back to Transactions
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// File validation
+document.getElementById('file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const fileHelp = document.getElementById('file-help');
+    
+    if (file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            fileHelp.textContent = 'Please select a CSV file';
+            fileHelp.className = 'form-text text-danger';
+            e.target.setAttribute('aria-invalid', 'true');
+        } else {
+            fileHelp.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            fileHelp.className = 'form-text text-success';
+            e.target.setAttribute('aria-invalid', 'false');
+        }
+    } else {
+        fileHelp.textContent = 'Select a CSV file containing transaction data';
+        fileHelp.className = 'form-text';
+        e.target.setAttribute('aria-invalid', 'false');
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        alert('Please select a CSV file to import.');
+        fileInput.focus();
+        return false;
+    }
+    
+    if (!fileInput.files[0].name.toLowerCase().endsWith('.csv')) {
+        e.preventDefault();
+        alert('Please select a valid CSV file.');
+        fileInput.focus();
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = document.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split" aria-hidden="true"></i> Importing...';
+    
+    return true;
+});
+</script>
+{% endblock %}

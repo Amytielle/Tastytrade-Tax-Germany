@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Settings</h3>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST">
+                        <div class="mb-4">
+                            <h5>API Keys</h5>
+                            <hr>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="finnhub_api_key" class="form-label">
+                                <strong>Finnhub API Key</strong>
+                                <small class="text-muted">(Optional - for real-time stock prices)</small>
+                            </label>
+                            <input type="password" class="form-control" id="finnhub_api_key" name="finnhub_api_key" 
+                                   value="{{ finnhub_api_key if finnhub_api_key else '' }}" 
+                                   placeholder="Enter your Finnhub API key">
+                            <div class="form-text">
+                                Get your free API key from <a href="https://finnhub.io/" target="_blank">Finnhub.io</a>.
+                                This key will be used to fetch real-time stock prices when using the Finnhub data source.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">API Key Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2"><strong>Finnhub:</strong></span>
+                                {% if finnhub_api_key %}
+                                    <span class="badge bg-success">Configured</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Not Configured</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            When API keys are not configured, the application will use fallback pricing methods.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0 text-danger">Data Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> The following action will permanently delete all your data.
+                    </div>
+                    
+                    <h6>Reset All Data</h6>
+                    <p class="text-muted mb-3">
+                        This will delete all transactions, settings, and uploaded files. 
+                        Use this feature when preparing the application for distribution to remove personal data.
+                    </p>
+                    
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#resetDataModal">
+                        <i class="fas fa-trash-alt"></i> Reset All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Data Confirmation Modal -->
+<div class="modal fade" id="resetDataModal" tabindex="-1" aria-labelledby="resetDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="resetDataModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Data Reset
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>This action cannot be undone!</strong>
+                </div>
+                <p>Are you sure you want to reset all data? This will:</p>
+                <ul>
+                    <li>Delete all transactions from the database</li>
+                    <li>Remove all uploaded CSV files</li>
+                    <li>Clear all settings and API keys</li>
+                    <li>Reset the application to its initial state</li>
+                </ul>
+                <p class="text-muted">This is typically used when preparing the application for distribution to remove personal data.</p>
+                
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="confirmReset" required>
+                    <label class="form-check-label" for="confirmReset">
+                        I understand this action is permanent and cannot be undone
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('reset_all_data') }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger" id="confirmResetBtn" disabled>
+                        <i class="fas fa-trash-alt"></i> Yes, Reset All Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enable/disable the reset button based on checkbox
+document.getElementById('confirmReset').addEventListener('change', function() {
+    document.getElementById('confirmResetBtn').disabled = !this.checked;
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Transaction Management System{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center py-3">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </h1>
+        <div>
+            <a href="{{ url_for('transactions') }}" class="btn btn-primary">
+                <i class="bi bi-table"></i> View All Transactions
+            </a>
+            <a href="{{ url_for('add_transaction') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Add New
+            </a>
+        </div>
+    </div>
+    
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-primary mb-2">
+                        <i class="bi bi-database"></i>
+                    </div>
+                    <h5 class="card-title">Total Records</h5>
+                    <h2 class="text-primary mb-0">{{ "{:,}".format(total_records) }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 text-success mb-2">
+                        <i class="bi bi-calendar-range"></i>
+                    </div>
+                    <h5 class="card-title">Date Range</h5>
+                    {% if date_range[0] and date_range[1] %}
+                        <p class="mb-1"><small class="text-muted">From:</small><br>{{ date_range[0][:10] }}</p>
+                        <p class="mb-0"><small class="text-muted">To:</small><br>{{ date_range[1][:10] }}</p>
+                    {% else %}
+                        <p class="text-muted">No data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Holdings -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-briefcase"></i> Current Holdings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if current_holdings %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Asset Category</th>
+                                    <th>Quantity</th>
+                                    <th>Avg Cost</th>
+                                    <th>Current Price</th>
+                                    <th>Cost Basis</th>
+                                    <th>Current Value</th>
+                                    <th>Unrealized P&L</th>
+                                    <th>Net Dividends</th>
+                                    <th>Adj. Avg Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holding in current_holdings %}
+                                <tr>
+                                    <td><strong>{{ holding.symbol }}</strong></td>
+                                    <td>
+                                        {% if holding.asset_category %}
+                                            {% if holding.asset_category == 'Stock' %}
+                                                <span class="badge bg-info">{{ holding.asset_category }}</span>
+                                            {% elif holding.asset_category == 'Option' %}
+                                                <span class="badge bg-warning">{{ holding.asset_category }}</span>
+                                            {% elif holding.asset_category == 'ETF' %}
+                                                <span class="badge bg-success">{{ holding.asset_category }}</span>
+                                            {% elif holding.asset_category == 'Bond' %}
+                                                <span class="badge bg-primary">{{ holding.asset_category }}</span>
+                                            {% elif holding.asset_category == 'Cryptocurrency' %}
+                                                <span class="badge bg-dark">{{ holding.asset_category }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ holding.asset_category }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,.0f}".format(holding.quantity) }}</td>
+                                    <td>${{ "{:,.2f}".format(holding.avg_cost) }}</td>
+                                    <td>{% if holding.current_price == 'N/A' %}N/A{% else %}${{ "{:,.2f}".format(holding.current_price) }}{% endif %}</td>
+                                    <td>${{ "{:,.2f}".format(holding.cost_basis) }}</td>
+                                    <td>${{ "{:,.2f}".format(holding.current_value) }}</td>
+                                    <td class="{% if holding.unrealized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "{:,.2f}".format(holding.unrealized_gain_loss) }}
+                                    </td>
+                                    <td class="{% if holding.net_dividends >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "{:,.2f}".format(holding.net_dividends) }}
+                                    </td>
+                                    <td class="{% if holding.adjusted_avg_cost <= 0 %}text-success{% else %}text-muted{% endif %}">
+                                        ${{ "{:,.2f}".format(holding.adjusted_avg_cost) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">No current holdings found</p>
+                        <small>Holdings will appear here after you make stock purchases</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Transactions -->
+    {% if recent_transactions %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Transactions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Symbol</th>
+                                    <th>Asset Category</th>
+                                    <th>Action</th>
+                                    <th class="text-end">Value</th>
+                                    <th class="text-end">Total</th>
+                                    <th>Currency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions[:5] %}
+                                <tr>
+                                    <td><small>{{ transaction['Date'][:10] if transaction['Date'] else 'N/A' }}</small></td>
+                                    <td><strong>{{ transaction['Symbol'] or '-' }}</strong></td>
+                                    <td>
+                                        {% if transaction['Asset_Category'] %}
+                                            {% if transaction['Asset_Category'] == 'Stock' %}
+                                                <span class="badge bg-info">{{ transaction['Asset_Category'] }}</span>
+                                            {% elif transaction['Asset_Category'] == 'Option' %}
+                                                <span class="badge bg-warning">{{ transaction['Asset_Category'] }}</span>
+                                            {% elif transaction['Asset_Category'] == 'ETF' %}
+                                                <span class="badge bg-success">{{ transaction['Asset_Category'] }}</span>
+                                            {% elif transaction['Asset_Category'] == 'Bond' %}
+                                                <span class="badge bg-primary">{{ transaction['Asset_Category'] }}</span>
+                                            {% elif transaction['Asset_Category'] == 'Cryptocurrency' %}
+                                                <span class="badge bg-dark">{{ transaction['Asset_Category'] }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ transaction['Asset_Category'] }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ transaction['Action'] or '-' }}</small></td>
+                                    <td class="text-end">
+                                        {% if transaction['Value'] %}
+                                            <span class="{% if transaction['Value'] > 0 %}text-success{% elif transaction['Value'] < 0 %}text-danger{% endif %}">
+                                                ${{ "{:,.2f}".format(transaction['Value']) }}
+                                            </span>
+                                            {% if transaction['Value_EUR'] %}
+                                    <br><small class="text-muted">€{{ "{:,.2f}".format(transaction['Value_EUR']) }}</small>
+                                {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if transaction['Total'] %}
+                                            <strong class="{% if transaction['Total'] > 0 %}text-success{% elif transaction['Total'] < 0 %}text-danger{% endif %}">
+                                                ${{ "{:,.2f}".format(transaction['Total']) }}
+                                            </strong>
+                                            {% if transaction['Total_EUR'] %}
+                                    <br><small class="text-muted">€{{ "{:,.2f}".format(transaction['Total_EUR']) }}</small>
+                                {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ transaction['Currency'] or '-' }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary btn-sm">
+                            View All Transactions <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Current Holdings Distribution -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-pie-chart"></i> Current Holdings Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if holdings_chart_data and holdings_chart_data|length > 0 %}
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="chart-container" style="position: relative; height: 400px;">
+                                    <canvas id="holdingsChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="mt-3">
+                                    <h6 class="text-muted mb-3">Holdings Summary</h6>
+                                    <div class="holdings-legend">
+                                        {% for i in range(holdings_chart_labels|length) %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="legend-color me-2" style="width: 16px; height: 16px; background-color: {{ holdings_chart_colors[i] }}; border-radius: 2px;"></div>
+                                                <strong>{{ holdings_chart_labels[i] }}</strong>
+                                            </div>
+                                            <span class="text-muted">${{ "{:,.2f}".format(holdings_chart_data[i]) }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>Total Value:</strong>
+                                        <strong class="text-primary">${{ "{:,.2f}".format(holdings_chart_data|sum) }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-pie-chart text-muted" style="font-size: 3rem;"></i>
+                            <p class="mt-3 text-muted">No current holdings to display</p>
+                            <small class="text-muted">Holdings will appear here after you make stock purchases</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Add some interactivity to stats cards
+    document.addEventListener('DOMContentLoaded', function() {
+        const statsCards = document.querySelectorAll('.stats-card');
+        
+        statsCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+                this.style.boxShadow = '0 0.5rem 1rem rgba(0, 0, 0, 0.15)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075)';
+            });
+        });
+        
+        // Initialize Holdings Pie Chart
+        {% if holdings_chart_data and holdings_chart_data|length > 0 %}
+        const ctx = document.getElementById('holdingsChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: {{ holdings_chart_labels|tojson }},
+                    datasets: [{
+                        data: {{ holdings_chart_data|tojson }},
+                        backgroundColor: {{ holdings_chart_colors|tojson }},
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false // We're using custom legend
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: $${value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000
+                    }
+                }
+            });
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+<!-- Reusable tax summary card component -->
+<!-- Usage: First set card_data variable, then include this template -->
+
+<div class="col-md-3">
+    <div class="card text-center">
+        <div class="card-body">
+            <i class="{{ card_data.icon_class }}" style="font-size: 2rem;"></i>
+            <h5 class="card-title mt-2">{{ card_data.title }}</h5>
+            
+            {% if card_data.value_eur is not none and card_data.value_eur != 0 %}
+                <h3 class="{{ card_data.text_class }}">€{{ "{:,.2f}".format(card_data.value_eur) }}</h3>
+            {% else %}
+                <h3 class="text-muted">€0.00</h3>
+            {% endif %}
+            
+            <small class="text-muted">{{ card_data.subtitle }}</small>
+            
+            {% if card_data.value_usd is not none %}
+                <div class="mt-1">
+                    <small class="text-muted">${{ "{:,.2f}".format(card_data.value_usd) }} USD</small>
+                </div>
+            {% endif %}
+            
+            {% if card_data.additional_info %}
+                <div class="mt-2">
+                    <small class="text-info">{{ card_data.additional_info }}</small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

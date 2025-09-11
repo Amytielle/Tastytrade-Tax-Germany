@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Transaction Management System{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        .table-responsive {
+            border-radius: 0.375rem;
+        }
+        .btn-sm {
+            font-size: 0.875rem;
+        }
+        .alert {
+            border-radius: 0.375rem;
+        }
+        .form-control, .form-select {
+            border-radius: 0.375rem;
+        }
+        .pagination {
+            margin-bottom: 0;
+        }
+        .stats-card {
+            transition: transform 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-2px);
+        }
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            min-height: calc(100vh - 56px);
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white !important;
+            border-radius: 0.375rem;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border-top: none;
+            font-weight: 600;
+        }
+        .badge {
+            font-size: 0.75em;
+        }
+        .text-truncate {
+            max-width: 200px;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary" role="navigation" aria-label="Main navigation">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}" aria-label="Transaction Manager Home">
+                <i class="bi bi-graph-up" aria-hidden="true"></i> Transaction Manager
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto" role="menubar">
+                    <li class="nav-item" role="none">
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}" role="menuitem" aria-current="{% if request.endpoint == 'index' %}page{% endif %}">
+                            <i class="bi bi-house" aria-hidden="true"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item" role="none">
+                        <a class="nav-link {% if request.endpoint == 'tax' %}active{% endif %}" href="{{ url_for('tax') }}" role="menuitem" aria-current="{% if request.endpoint == 'tax' %}page{% endif %}">
+                            <i class="bi bi-calculator" aria-hidden="true"></i> Tax
+                        </a>
+                    </li>
+                    <li class="nav-item" role="none">
+                        <a class="nav-link {% if request.endpoint == 'transactions' %}active{% endif %}" href="{{ url_for('transactions') }}" role="menuitem" aria-current="{% if request.endpoint == 'transactions' %}page{% endif %}">
+                            <i class="bi bi-table" aria-hidden="true"></i> Transactions
+                        </a>
+                    </li>
+                    <li class="nav-item" role="none">
+                        <a class="nav-link" href="{{ url_for('add_transaction') }}" role="menuitem" aria-current="{% if request.endpoint == 'add_transaction' %}page{% endif %}">
+                            <i class="bi bi-plus-circle" aria-hidden="true"></i> Add Transaction
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav" role="menubar">
+                    <li class="nav-item" role="none">
+                        <a class="nav-link" href="{{ url_for('update_currency') }}" role="menuitem" aria-label="Update USD to EUR exchange rates">
+                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Update USD/EUR
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown" role="none">
+                        <a class="nav-link dropdown-toggle" href="#" id="stockPricesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+                            <i class="bi bi-graph-up" aria-hidden="true"></i> Update Stock Prices
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="stockPricesDropdown" role="menu">
+                            <li role="none"><a class="dropdown-item" href="{{ url_for('update_stock_prices') }}" role="menuitem"><i class="bi bi-collection" aria-hidden="true"></i> All Sources</a></li>
+                            <li role="separator"><hr class="dropdown-divider"></li>
+                            <li role="none"><a class="dropdown-item" href="{{ url_for('update_stock_prices_finnhub') }}" role="menuitem"><i class="bi bi-bar-chart" aria-hidden="true"></i> Finnhub</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown" role="none">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+                            <i class="bi bi-gear" aria-hidden="true"></i> Settings
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown" role="menu">
+                            <li role="none"><a class="dropdown-item" href="{{ url_for('settings') }}" role="menuitem"><i class="bi bi-key" aria-hidden="true"></i> API Keys</a></li>
+                            <li role="separator"><hr class="dropdown-divider"></li>
+                            <li role="none"><a class="dropdown-item" href="{{ url_for('export_transactions') }}" role="menuitem" id="export-data"><i class="bi bi-download" aria-hidden="true"></i> Export Data</a></li>
+                            <li role="none"><a class="dropdown-item" href="{{ url_for('import_transactions') }}" role="menuitem" id="import-data"><i class="bi bi-upload" aria-hidden="true"></i> Import Data</a></li>
+                            <li role="separator"><hr class="dropdown-divider"></li>
+                            <li role="none"><a class="dropdown-item" href="#" role="menuitem"><i class="bi bi-info-circle" aria-hidden="true"></i> About</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="container-fluid mt-4" role="main" aria-label="Main content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="alert-container" role="region" aria-label="Status messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert" aria-live="polite" aria-atomic="true">
+                            <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}" aria-hidden="true"></i>
+                            <span class="visually-hidden">{{ 'Error' if category == 'error' else category|title }} message:</span>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close {{ category }} message"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="row">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <small>
+                &copy; 2025 Transaction Management System | 
+                <i class="bi bi-database"></i> SQLite Database | 
+                <i class="bi bi-code-slash"></i> Flask Web Application
+            </small>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

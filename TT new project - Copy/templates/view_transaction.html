@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Transaction Details - Transaction Management System{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center py-3">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-eye"></i> Transaction Details
+        </h1>
+        <div>
+            <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </a>
+            <a href="{{ url_for('edit_transaction', rowid=transaction['rowid']) }}" class="btn btn-warning">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <button type="button" class="btn btn-danger" onclick="confirmDelete('{{ transaction['rowid'] }}')"></button>
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Main Transaction Details -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> Transaction Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-2">Basic Information</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Date</label>
+                                <div class="form-control-plaintext">
+                                    {% if transaction['Date'] %}
+                                        {{ transaction['Date'][:10] }} at {{ transaction['Date'][11:19] if transaction['Date']|length > 10 else '' }}
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Type</label>
+                                <div class="form-control-plaintext">
+                                    {% if transaction['Type'] == 'Trade' %}
+                                        <span class="badge bg-primary fs-6">{{ transaction['Type'] }}</span>
+                                    {% elif transaction['Type'] == 'Money Movement' %}
+                                        <span class="badge bg-success fs-6">{{ transaction['Type'] }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary fs-6">{{ transaction['Type'] or 'Unknown' }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Sub Type</label>
+                                <div class="form-control-plaintext">{{ transaction['Sub_Type'] or 'N/A' }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Action</label>
+                                <div class="form-control-plaintext">
+                                    <code>{{ transaction['Action'] or 'N/A' }}</code>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Symbol and Instrument -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-2">Symbol & Instrument</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Symbol</label>
+                                <div class="form-control-plaintext">
+                                    {% if transaction['Symbol'] %}
+                                        <span class="badge bg-info fs-6">{{ transaction['Symbol'] }}</span>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Instrument Type</label>
+                                <div class="form-control-plaintext">{{ transaction['Instrument_Type'] or 'N/A' }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Root Symbol</label>
+                                <div class="form-control-plaintext">{{ transaction['Root_Symbol'] or 'N/A' }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Underlying Symbol</label>
+                                <div class="form-control-plaintext">{{ transaction['Underlying_Symbol'] or 'N/A' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description</label>
+                        <div class="form-control-plaintext bg-light p-3 rounded">
+                            {{ transaction['Description'] or 'No description available' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Financial Details -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-currency-dollar"></i> Financial Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Quantity</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Quantity'] %}
+                                <span class="fs-5">{{ "{:,.4f}".format(transaction['Quantity']) }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Value</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Value'] %}
+                                <span class="fs-5 {% if transaction['Value'] > 0 %}text-success{% elif transaction['Value'] < 0 %}text-danger{% endif %}">
+                                    ${{ "{:,.2f}".format(transaction['Value']) }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Average Price</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Average_Price'] %}
+                                <span class="fs-6">${{ "{:,.4f}".format(transaction['Average_Price']) }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Commissions</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Commissions'] %}
+                                ${{ "{:,.2f}".format(transaction['Commissions']) }}
+                            {% else %}
+                                <span class="text-muted">$0.00</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fees</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Fees'] %}
+                                ${{ "{:,.2f}".format(transaction['Fees']) }}
+                            {% else %}
+                                <span class="text-muted">$0.00</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Total Amount</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['Total'] %}
+                                <span class="fs-4 fw-bold {% if transaction['Total'] > 0 %}text-success{% elif transaction['Total'] < 0 %}text-danger{% endif %}">
+                                    ${{ "{:,.2f}".format(transaction['Total']) }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted fs-4">$0.00</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Currency</label>
+                        <div class="form-control-plaintext">
+                            <span class="badge bg-dark">{{ transaction['Currency'] or 'USD' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">USD to EUR Rate</label>
+                        <div class="form-control-plaintext">
+                            {% if transaction['USD_EUR_Rate'] %}
+                                <span class="fs-6 text-info">{{ "{:.4f}".format(transaction['USD_EUR_Rate']) }}</span>
+                                <small class="text-muted d-block">Rate for {{ transaction['Date'][:10] if transaction['Date'] else 'N/A' }}</small>
+                            {% else %}
+                                <span class="text-muted">Rate not available</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Options Details (if applicable) -->
+    {% if transaction['Expiration_Date'] or transaction['Strike_Price'] or transaction['Call_or_Put'] %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear"></i> Options Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Expiration Date</label>
+                                <div class="form-control-plaintext">
+                                    {{ transaction['Expiration_Date'] or 'N/A' }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Strike Price</label>
+                                <div class="form-control-plaintext">
+                                    {% if transaction['Strike_Price'] %}
+                                        ${{ "{:,.2f}".format(transaction['Strike_Price']) }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Call or Put</label>
+                                <div class="form-control-plaintext">
+                                    {% if transaction['Call_or_Put'] %}
+                                        <span class="badge {% if transaction['Call_or_Put'].upper() == 'CALL' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ transaction['Call_or_Put'] }}
+                                        </span>
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Additional Information -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-square"></i> Additional Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Order Number</label>
+                            <div class="form-control-plaintext">
+                                {% if transaction['Order_Number'] %}
+                                    <code>{{ transaction['Order_Number'] }}</code>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Multiplier</label>
+                            <div class="form-control-plaintext">
+                                {{ transaction['Multiplier'] or 'N/A' }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Database ID</label>
+                            <div class="form-control-plaintext">
+                                <small class="text-muted">{{ transaction['rowid'] }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-danger"></i> Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this transaction? This action cannot be undone.</p>
+                <div class="alert alert-warning">
+                    <strong>Transaction:</strong> {{ transaction['Symbol'] or 'N/A' }} - {{ transaction['Description'] or 'N/A' }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Transaction
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(rowid) {
+    const deleteForm = document.getElementById('deleteForm');
+    deleteForm.action = `/transaction/delete/${rowid}`;
+    
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
+{% endblock %}

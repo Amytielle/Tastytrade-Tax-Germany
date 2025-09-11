@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}Tax Reports - Transaction Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 mb-0">
+                    <i class="bi bi-calculator" aria-hidden="true"></i> Tax Reports
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tax Summary Cards -->
+    <div class="row mb-4">
+        {% set card_data = {
+            'icon_class': 'bi bi-graph-up text-success',
+            'title': 'Realized Gains',
+            'value_eur': tax_summary.realized_gains.eur if tax_summary and tax_summary.realized_gains.eur is not none else 0,
+            'value_usd': tax_summary.realized_gains.usd if tax_summary and tax_summary.realized_gains.usd is not none else 0,
+            'text_class': 'text-success' if tax_summary and tax_summary.realized_gains.eur and tax_summary.realized_gains.eur > 0 else 'text-muted',
+            'subtitle': 'Completed transactions'
+        } %}
+        {% include 'components/tax_summary_card.html' %}
+        
+        {% set card_data = {
+            'icon_class': 'bi bi-graph-down text-danger',
+            'title': 'Realized Losses',
+            'value_eur': tax_summary.realized_losses.eur if tax_summary and tax_summary.realized_losses.eur is not none else 0,
+            'value_usd': tax_summary.realized_losses.usd if tax_summary and tax_summary.realized_losses.usd is not none else 0,
+            'text_class': 'text-danger',
+            'subtitle': 'Completed transactions'
+        } %}
+        {% include 'components/tax_summary_card.html' %}
+        
+        {% set card_data = {
+            'icon_class': 'bi bi-hourglass-split text-info',
+            'title': 'Unrealized P&L',
+            'value_eur': tax_summary.unrealized_gain_loss.eur if tax_summary and tax_summary.unrealized_gain_loss.eur is not none else 0,
+            'value_usd': tax_summary.unrealized_gain_loss.usd if tax_summary and tax_summary.unrealized_gain_loss.usd is not none else 0,
+            'text_class': 'text-success' if tax_summary and tax_summary.unrealized_gain_loss.eur and tax_summary.unrealized_gain_loss.eur >= 0 else 'text-danger',
+            'subtitle': 'Current holdings'
+        } %}
+        {% include 'components/tax_summary_card.html' %}
+        
+        {% set card_data = {
+            'icon_class': 'bi bi-cash-coin text-primary',
+            'title': 'Dividends',
+            'value_eur': tax_summary.dividends.eur if tax_summary and tax_summary.dividends.eur is not none else 0,
+            'value_usd': tax_summary.dividends.usd if tax_summary and tax_summary.dividends.usd is not none else 0,
+            'text_class': 'text-primary',
+            'subtitle': 'Gross dividends in EUR',
+            'additional_info': 'Source Tax: €' + "{:,.2f}".format(tax_summary.source_tax.eur if tax_summary and tax_summary.source_tax.eur is not none else 0) if tax_summary else None
+        } %}
+        {% include 'components/tax_summary_card.html' %}
+    </div>
+
+    <!-- Additional Summary Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-calculator text-primary" style="font-size: 2rem;"></i>
+                    <h5 class="card-title mt-2">Net Realized P&L</h5>
+                    {% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.net_realized_gain_loss.eur >= 0 %}
+                    <h3 class="text-success">€{{ "{:,.2f}".format(tax_summary.net_realized_gain_loss.eur if tax_summary.net_realized_gain_loss.eur is not none else 0) }}</h3>
+                    {% else %}
+                    <h3 class="text-danger">€{{ "{:,.2f}".format(tax_summary.net_realized_gain_loss.eur if tax_summary and tax_summary.net_realized_gain_loss.eur is not none else 0) }}</h3>
+                    {% endif %}
+                    <small class="text-muted">Taxable gains/losses</small>
+                    {% if tax_summary %}
+                    <div class="mt-1"><small class="text-muted">${{ "{:,.2f}".format(tax_summary.net_realized_gain_loss.usd if tax_summary.net_realized_gain_loss.usd is not none else 0) }} USD</small></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-receipt text-warning" style="font-size: 2rem;"></i>
+                    <h5 class="card-title mt-2">Total Fees</h5>
+                    <h3 class="text-warning">€{{ "{:,.2f}".format(tax_summary.total_fees.eur if tax_summary and tax_summary.total_fees.eur is not none else 0) }}</h3>
+                    <small class="text-muted">Trading fees and commissions</small>
+                    {% if tax_summary %}
+                    <div class="mt-1"><small class="text-muted">${{ "{:,.2f}".format(tax_summary.total_fees.usd if tax_summary.total_fees.usd is not none else 0) }} USD</small></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tax Year Selection -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Tax Year Selection</h5>
+                </div>
+                <div class="card-body">
+                    <form class="row g-3">
+                        <div class="col-md-6">
+                            <label for="taxYear" class="form-label">Tax Year</label>
+                            <select class="form-select" id="taxYear" name="taxYear">
+                                <option value="ytd" {% if tax_year == 'ytd' %}selected{% endif %}>{{ year_data.ytd_label }}</option>
+                                {% for year in year_data.available_years %}
+                                <option value="{{ year }}" {% if tax_year == year|string %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reportType" class="form-label">Report Type</label>
+                            <select class="form-select" id="reportType" name="reportType">
+                                <option value="summary" selected>Summary</option>
+                                <option value="detailed">Detailed</option>
+                                <option value="anlage-kap">Anlage KAP</option>
+                                <option value="source-tax">Source Tax Report</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-file-earmark-text"></i> Generate Report
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2">
+                                <i class="bi bi-download"></i> Export PDF
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Tax Documents</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                <span class="ms-2">Anlage KAP (Coming Soon)</span>
+                            </div>
+                            <span class="badge bg-secondary">Not Available</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+                                <span class="ms-2">Tax Summary CSV (EUR)</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" disabled>
+                                <i class="bi bi-download"></i> Download
+                            </button>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-file-earmark-text text-primary"></i>
+                                <span class="ms-2">Source Tax Report (15%)</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" disabled>
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Realized Transactions Details -->
+    {% if detailed_transactions %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Realized Transactions (FIFO)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Asset Category</th>
+                                    <th>Buy Date</th>
+                                    <th>Sell Date</th>
+                                    <th>Quantity</th>
+                                    <th>Buy Price</th>
+                                    <th>Sell Price</th>
+                                    <th>Cost Basis</th>
+                                    <th>Proceeds</th>
+                                    <th>Gain/Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in detailed_transactions %}
+                                <tr>
+                                    <td><strong>{{ transaction.symbol }}</strong></td>
+                                    <td>
+                                        {% if transaction.asset_category %}
+                                            {% if transaction.asset_category == 'Stock' %}
+                                                <span class="badge bg-info">{{ transaction.asset_category }}</span>
+                                            {% elif transaction.asset_category == 'Option' %}
+                                                <span class="badge bg-warning">{{ transaction.asset_category }}</span>
+                                            {% elif transaction.asset_category == 'ETF' %}
+                                                <span class="badge bg-success">{{ transaction.asset_category }}</span>
+                                            {% elif transaction.asset_category == 'Bond' %}
+                                                <span class="badge bg-primary">{{ transaction.asset_category }}</span>
+                                            {% elif transaction.asset_category == 'Cryptocurrency' %}
+                                                <span class="badge bg-dark">{{ transaction.asset_category }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ transaction.asset_category }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.buy_date[:10] }}</td>
+                                    <td>{{ transaction.sell_date[:10] }}</td>
+                                    <td>{{ "{:,.0f}".format(transaction.quantity) }}</td>
+                                    <td>${{ "{:,.2f}".format(transaction.buy_price) }}</td>
+                                    <td>${{ "{:,.2f}".format(transaction.sell_price) }}</td>
+                                    <td>${{ "{:,.2f}".format(transaction.cost_basis) }}</td>
+                                    <td>${{ "{:,.2f}".format(transaction.proceeds) }}</td>
+                                    <td class="{% if transaction.gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "{:,.2f}".format(transaction.gain_loss) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Unrealized Positions -->
+    {% if unrealized_positions %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Holdings (Unrealized P&L)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Asset Category</th>
+                                    <th>Quantity</th>
+                                    <th>Avg Cost</th>
+                                    <th>Current Price</th>
+                                    <th>Cost Basis</th>
+                                    <th>Current Value</th>
+                                    <th>Unrealized P&L</th>
+                                    <th>Buy Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for position in unrealized_positions %}
+                                <tr>
+                                    <td><strong>{{ position.symbol }}</strong></td>
+                                    <td>
+                                        {% if position.asset_category %}
+                                            {% if position.asset_category == 'Stock' %}
+                                                <span class="badge bg-info">{{ position.asset_category }}</span>
+                                            {% elif position.asset_category == 'Option' %}
+                                                <span class="badge bg-warning">{{ position.asset_category }}</span>
+                                            {% elif position.asset_category == 'ETF' %}
+                                                <span class="badge bg-success">{{ position.asset_category }}</span>
+                                            {% elif position.asset_category == 'Bond' %}
+                                                <span class="badge bg-primary">{{ position.asset_category }}</span>
+                                            {% elif position.asset_category == 'Cryptocurrency' %}
+                                                <span class="badge bg-dark">{{ position.asset_category }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ position.asset_category }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,.0f}".format(position.quantity) }}</td>
+                                    <td>${{ "{:,.2f}".format(position.avg_cost) }}</td>
+                                    <td>${{ "{:,.2f}".format(position.current_price) }}</td>
+                                    <td>${{ "{:,.2f}".format(position.cost_basis) }}</td>
+                                    <td>${{ "{:,.2f}".format(position.current_value) }}</td>
+                                    <td class="{% if position.unrealized_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "{:,.2f}".format(position.unrealized_gain_loss) }}
+                                    </td>
+                                    <td>{{ position.buy_date[:10] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-success mt-3">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Real-time Data:</strong> Current prices are fetched from live market data sources.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tax Analysis -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">German Tax Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Stock Earnings/Losses</h6>
+                            <ul class="list-unstyled">
+                                <li>• Stock Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.stock_gains.eur if tax_summary and tax_summary.stock_gains.eur is not none else 0) }}</span></li>
+                                <li>• Stock Losses: <span class="text-danger">€{{ "{:,.2f}".format(tax_summary.stock_losses.eur if tax_summary and tax_summary.stock_losses.eur is not none else 0) }}</span></li>
+                                <li><strong>• Net Stock P&L: <span class="{% if tax_summary and tax_summary.stock_net_gain_loss.eur is not none and tax_summary.stock_net_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.stock_net_gain_loss.eur if tax_summary and tax_summary.stock_net_gain_loss.eur is not none else 0) }}</span></strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Other Assets Earnings/Losses</h6>
+                            <ul class="list-unstyled">
+                                <li>• Other Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.other_gains.eur if tax_summary and tax_summary.other_gains.eur is not none else 0) }}</span></li>
+                                <li>• Other Losses: <span class="text-danger">€{{ "{:,.2f}".format(tax_summary.other_losses.eur if tax_summary and tax_summary.other_losses.eur is not none else 0) }}</span></li>
+                                <li><strong>• Net Other P&L: <span class="{% if tax_summary and tax_summary.other_net_gain_loss.eur is not none and tax_summary.other_net_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.other_net_gain_loss.eur if tax_summary and tax_summary.other_net_gain_loss.eur is not none else 0) }}</span></strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Total & Other Income</h6>
+                            <ul class="list-unstyled">
+                                <li>• Total Realized Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.realized_gains.eur if tax_summary and tax_summary.realized_gains.eur is not none else 0) }}</span></li>
+                                <li>• Total Realized Losses: <span class="text-danger">€{{ "{:,.2f}".format(tax_summary.realized_losses.eur if tax_summary and tax_summary.realized_losses.eur is not none else 0) }}</span></li>
+                                <li>• Net Realized P&L: <span class="{% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.net_realized_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.net_realized_gain_loss.eur if tax_summary and tax_summary.net_realized_gain_loss.eur is not none else 0) }}</span></li>
+                                <li>• Dividend Income (Gross): <span class="text-primary">€{{ "{:,.2f}".format(tax_summary.dividends.eur if tax_summary and tax_summary.dividends.eur is not none else 0) }}</span></li>
+                                <li>• Source Tax Credit: <span class="text-warning">€{{ "{:,.2f}".format(tax_summary.source_tax.eur if tax_summary and tax_summary.source_tax.eur is not none else 0) }}</span></li>
+                                <li><strong>• Total Taxable Income: <span class="{% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none and (tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format((tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none else 0) }}</span></strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Portfolio Status (Unrealized)</h6>
+                            <ul class="list-unstyled">
+                                <li>• Unrealized P&L: <span class="{% if tax_summary and tax_summary.unrealized_gain_loss.eur is not none and tax_summary.unrealized_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">${{ "{:,.2f}".format(tax_summary.unrealized_gain_loss.usd if tax_summary and tax_summary.unrealized_gain_loss.usd is not none else 0) }} / €{{ "{:,.2f}".format(tax_summary.unrealized_gain_loss.eur if tax_summary and tax_summary.unrealized_gain_loss.eur is not none else 0) }}</span></li>
+                                <li>• Open Positions: {{ unrealized_positions|length if unrealized_positions else 0 }}</li>
+                                <li>• Trading Fees: <span class="text-warning">€{{ "{:,.2f}".format(tax_summary.total_fees.eur if tax_summary and tax_summary.total_fees.eur is not none else 0) }}</span></li>
+                            </ul>
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Tax Note:</strong> Only realized gains/losses are taxable in Germany. Unrealized positions are for informational purposes only.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Placeholder for future tax calculation JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Tax page loaded - calculations will be implemented in future updates');
+    });
+</script>
+{% endblock %}
