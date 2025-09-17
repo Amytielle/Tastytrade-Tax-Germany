@@ -3,6 +3,11 @@ TODO
 - ROC (Return of Capital)
 - Export documents
 
+# Latest fixes
+- fixed USD to EUR conversion using historical rates
+- added basic options calculation (still WIP)
+- added EUR conversion transactions
+
 # TastyTrade Transaction Tracker
 
 A Flask web application for tracking and analyzing TastyTrade transactions with tax reporting capabilities.
