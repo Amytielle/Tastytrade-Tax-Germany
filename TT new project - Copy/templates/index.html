@@ -248,14 +248,39 @@
                                                 <div class="legend-color me-2" style="width: 16px; height: 16px; background-color: {{ holdings_chart_colors[i] }}; border-radius: 2px;"></div>
                                                 <strong>{{ holdings_chart_labels[i] }}</strong>
                                             </div>
-                                            <span class="text-muted">${{ "{:,.2f}".format(holdings_chart_data[i]) }}</span>
+                                            <div class="text-end">
+                                                <div class="text-muted">${{ "{:,.2f}".format(holdings_chart_data[i]) }}</div>
+                                                <small class="text-muted">€{{ "{:,.2f}".format(holdings_chart_data_eur[i]) }}</small>
+                                            </div>
                                         </div>
                                         {% endfor %}
                                     </div>
                                     <hr>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <strong>Total Value:</strong>
-                                        <strong class="text-primary">${{ "{:,.2f}".format(holdings_chart_data|sum) }}</strong>
+                                        <div class="text-end">
+                                            <strong class="text-primary">${{ "{:,.2f}".format(holdings_chart_data|sum) }}</strong>
+                                            <br>
+                                            <small class="text-muted">€{{ "{:,.2f}".format(holdings_chart_data_eur|sum) }}</small>
+                                        </div>
+                                    </div>
+                                    <hr class="my-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>Wire Funds Received:</strong>
+                                        <div class="text-end">
+                                            <strong class="text-success">${{ "{:,.2f}".format(wire_funds_total_usd) }}</strong>
+                                            <br>
+                                            <small class="text-muted">€{{ "{:,.2f}".format(wire_funds_total_eur) }}</small>
+                                        </div>
+                                    </div>
+                                    <hr class="my-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>Difference (Total - Wire Funds):</strong>
+                                        <div class="text-end">
+                                            <strong class="{% if difference_usd >= 0 %}text-success{% else %}text-danger{% endif %}">${{ "{:,.2f}".format(difference_usd) }}</strong>
+                                            <br>
+                                            <small class="text-muted">€{{ "{:,.2f}".format(difference_eur) }}</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

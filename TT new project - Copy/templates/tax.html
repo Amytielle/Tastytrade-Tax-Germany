@@ -220,12 +220,25 @@
                                     <td>{{ transaction.buy_date[:10] }}</td>
                                     <td>{{ transaction.sell_date[:10] }}</td>
                                     <td>{{ "{:,.0f}".format(transaction.quantity) }}</td>
-                                    <td>${{ "{:,.2f}".format(transaction.buy_price) }}</td>
-                                    <td>${{ "{:,.2f}".format(transaction.sell_price) }}</td>
-                                    <td>${{ "{:,.2f}".format(transaction.cost_basis) }}</td>
-                                    <td>${{ "{:,.2f}".format(transaction.proceeds) }}</td>
+                                    <td>
+                                        ${{ "{:,.2f}".format(transaction.buy_price) }}<br>
+                                        <small class="text-muted">€{{ "{:,.2f}".format(transaction.buy_price_eur) }}</small>
+                                    </td>
+                                    <td>
+                                        ${{ "{:,.2f}".format(transaction.sell_price) }}<br>
+                                        <small class="text-muted">€{{ "{:,.2f}".format(transaction.sell_price_eur) }}</small>
+                                    </td>
+                                    <td>
+                                        ${{ "{:,.2f}".format(transaction.cost_basis) }}<br>
+                                        <small class="text-muted">€{{ "{:,.2f}".format(transaction.cost_basis_eur) }}</small>
+                                    </td>
+                                    <td>
+                                        ${{ "{:,.2f}".format(transaction.proceeds) }}<br>
+                                        <small class="text-muted">€{{ "{:,.2f}".format(transaction.proceeds_eur) }}</small>
+                                    </td>
                                     <td class="{% if transaction.gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                        ${{ "{:,.2f}".format(transaction.gain_loss) }}
+                                        ${{ "{:,.2f}".format(transaction.gain_loss) }}<br>
+                                        <small class="text-muted">€{{ "{:,.2f}".format(transaction.gain_loss_eur) }}</small>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -318,7 +331,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <h6>Stock Earnings/Losses</h6>
                             <ul class="list-unstyled">
                                 <li>• Stock Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.stock_gains.eur if tax_summary and tax_summary.stock_gains.eur is not none else 0) }}</span></li>
@@ -326,7 +339,15 @@
                                 <li><strong>• Net Stock P&L: <span class="{% if tax_summary and tax_summary.stock_net_gain_loss.eur is not none and tax_summary.stock_net_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.stock_net_gain_loss.eur if tax_summary and tax_summary.stock_net_gain_loss.eur is not none else 0) }}</span></strong></li>
                             </ul>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <h6>Option Earnings/Losses</h6>
+                            <ul class="list-unstyled">
+                                <li>• Option Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.option_gains.eur if tax_summary and tax_summary.option_gains.eur is not none else 0) }}</span></li>
+                                <li>• Option Losses: <span class="text-danger">€{{ "{:,.2f}".format(tax_summary.option_losses.eur if tax_summary and tax_summary.option_losses.eur is not none else 0) }}</span></li>
+                                <li><strong>• Net Option P&L: <span class="{% if tax_summary and tax_summary.option_net_gain_loss.eur is not none and tax_summary.option_net_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.option_net_gain_loss.eur if tax_summary and tax_summary.option_net_gain_loss.eur is not none else 0) }}</span></strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
                             <h6>Other Assets Earnings/Losses</h6>
                             <ul class="list-unstyled">
                                 <li>• Other Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.other_gains.eur if tax_summary and tax_summary.other_gains.eur is not none else 0) }}</span></li>
@@ -334,7 +355,7 @@
                                 <li><strong>• Net Other P&L: <span class="{% if tax_summary and tax_summary.other_net_gain_loss.eur is not none and tax_summary.other_net_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.other_net_gain_loss.eur if tax_summary and tax_summary.other_net_gain_loss.eur is not none else 0) }}</span></strong></li>
                             </ul>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <h6>Total & Other Income</h6>
                             <ul class="list-unstyled">
                                 <li>• Total Realized Gains: <span class="text-success">€{{ "{:,.2f}".format(tax_summary.realized_gains.eur if tax_summary and tax_summary.realized_gains.eur is not none else 0) }}</span></li>
@@ -342,7 +363,7 @@
                                 <li>• Net Realized P&L: <span class="{% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.net_realized_gain_loss.eur >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format(tax_summary.net_realized_gain_loss.eur if tax_summary and tax_summary.net_realized_gain_loss.eur is not none else 0) }}</span></li>
                                 <li>• Dividend Income (Gross): <span class="text-primary">€{{ "{:,.2f}".format(tax_summary.dividends.eur if tax_summary and tax_summary.dividends.eur is not none else 0) }}</span></li>
                                 <li>• Source Tax Credit: <span class="text-warning">€{{ "{:,.2f}".format(tax_summary.source_tax.eur if tax_summary and tax_summary.source_tax.eur is not none else 0) }}</span></li>
-                                <li><strong>• Total Taxable Income: <span class="{% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none and (tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) >= 0 %}text-success{% else %}text-danger{% endif %}">€{{ "{:,.2f}".format((tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none else 0) }}</span></strong></li>
+                                <li><strong>• Total Taxable Income: <span class="{% if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none and (tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) >= 0 %}text-success{% else %}text-danger{% endif %}">${{ "{:,.2f}".format((tax_summary.net_realized_gain_loss.usd + tax_summary.dividends.usd - tax_summary.source_tax.usd) if tax_summary and tax_summary.net_realized_gain_loss.usd is not none and tax_summary.dividends.usd is not none and tax_summary.source_tax.usd is not none else 0) }} / €{{ "{:,.2f}".format((tax_summary.net_realized_gain_loss.eur + tax_summary.dividends.eur - tax_summary.source_tax.eur) if tax_summary and tax_summary.net_realized_gain_loss.eur is not none and tax_summary.dividends.eur is not none and tax_summary.source_tax.eur is not none else 0) }}</span></strong></li>
                             </ul>
                         </div>
                         <div class="col-md-6">

@@ -131,6 +131,7 @@
                             <th class="text-end">Total</th>
                             <th>Currency</th>
                             <th class="text-end">USD/EUR Rate</th>
+                            <th class="text-end">EUR Value</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -219,6 +220,15 @@
                                 <td class="text-end">
                                     {% if transaction['USD_EUR_Rate'] %}
                                         <small class="text-muted">{{ "{:.4f}".format(transaction['USD_EUR_Rate']) }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if transaction['Total'] and transaction['USD_EUR_Rate'] %}
+                                        <strong class="{% if transaction['Total'] > 0 %}text-success{% elif transaction['Total'] < 0 %}text-danger{% endif %}">
+                                            €{{ "{:,.2f}".format(transaction['Total'] / transaction['USD_EUR_Rate']) }}
+                                        </strong>
                                     {% else %}
                                         <small class="text-muted">-</small>
                                     {% endif %}

@@ -128,6 +128,7 @@ def index():
         
         # Prepare data for holdings pie chart
         holdings_chart_data = []
+        holdings_chart_data_eur = []
         holdings_chart_labels = []
         holdings_chart_colors = []
         
@@ -137,11 +138,51 @@ def index():
             '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
         ]
         
+        # Get current date for EUR conversion
+        from datetime import datetime
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        
+        # Calculate total wire funds received using historical exchange rates
+        cursor.execute("""
+            SELECT Date, Value 
+            FROM transactions 
+            WHERE Type = 'Money Movement' 
+            AND Sub_Type = 'Deposit' 
+            AND Description = 'Wire Funds Received'
+        """)
+        wire_funds_transactions = cursor.fetchall()
+        
+        wire_funds_total_usd = 0
+        wire_funds_total_eur = 0
+        
+        for transaction in wire_funds_transactions:
+            date_str = transaction[0][:10] if transaction[0] else current_date  # Extract date part
+            usd_amount = transaction[1] or 0
+            
+            # Convert each transaction using its historical exchange rate
+            eur_amount = convert_usd_to_eur(usd_amount, date_str) or 0
+            
+            wire_funds_total_usd += usd_amount
+            wire_funds_total_eur += eur_amount
+        
+        # Calculate difference between total value and wire funds
+        total_value_usd = holdings_data.get('total_current_value', 0)
+        total_value_eur = convert_usd_to_eur(total_value_usd, current_date) or 0
+        
+        difference_usd = total_value_usd - wire_funds_total_usd
+        difference_eur = total_value_eur - wire_funds_total_eur
+        
         if current_holdings:
             for i, holding in enumerate(current_holdings):
                 if holding['current_value'] and holding['current_value'] > 0:
                     holdings_chart_labels.append(holding['symbol'])
-                    holdings_chart_data.append(float(holding['current_value']))
+                    usd_value = float(holding['current_value'])
+                    holdings_chart_data.append(usd_value)
+                    
+                    # Convert to EUR using current exchange rate
+                    eur_value = convert_usd_to_eur(usd_value, current_date) or 0
+                    holdings_chart_data_eur.append(eur_value)
+                    
                     holdings_chart_colors.append(colors[i % len(colors)])
         
         # Date range
@@ -180,8 +221,13 @@ def index():
                              date_range=date_range,
                              recent_transactions=transactions_with_eur,
                              holdings_chart_data=holdings_chart_data,
+                             holdings_chart_data_eur=holdings_chart_data_eur,
                              holdings_chart_labels=holdings_chart_labels,
-                             holdings_chart_colors=holdings_chart_colors)
+                             holdings_chart_colors=holdings_chart_colors,
+                             wire_funds_total_usd=wire_funds_total_usd,
+                             wire_funds_total_eur=wire_funds_total_eur,
+                             difference_usd=difference_usd,
+                             difference_eur=difference_eur)
 
 @app.route('/transactions')
 def transactions():
@@ -209,8 +255,13 @@ def transactions():
             params.append(filter_type)
     
         if filter_symbol:
-            query += " AND Symbol = ?"
-            params.append(filter_symbol)
+            if filter_symbol == 'Option':
+                # Filter for all option transactions
+                query += " AND Asset_Category = 'Option'"
+            else:
+                # Filter for specific symbol
+                query += " AND Symbol = ?"
+                params.append(filter_symbol)
     
         # Count total records for pagination
         count_query = query.replace("SELECT rowid as rowid, *", "SELECT COUNT(*)")
@@ -246,9 +297,26 @@ def transactions():
         # Get unique types and symbols for filters
         cursor.execute("SELECT DISTINCT Type FROM transactions WHERE Type IS NOT NULL ORDER BY Type")
         types = [row[0] for row in cursor.fetchall()]
-    
-        cursor.execute("SELECT DISTINCT Symbol FROM transactions WHERE Symbol IS NOT NULL ORDER BY Symbol")
-        symbols = [row[0] for row in cursor.fetchall()]
+
+        # Get symbols, but group options under 'Option' category
+        cursor.execute("SELECT DISTINCT Symbol, Asset_Category FROM transactions WHERE Symbol IS NOT NULL ORDER BY Symbol")
+        symbol_rows = cursor.fetchall()
+        
+        symbols = []
+        has_options = False
+        
+        for row in symbol_rows:
+            symbol, asset_category = row
+            if asset_category == 'Option':
+                has_options = True
+            else:
+                symbols.append(symbol)
+        
+        # Add 'Option' as a grouped category if there are any options
+        if has_options:
+            symbols.insert(0, 'Option')
+        
+        symbols.sort()
     
     # Replace transactions with the enhanced version
     transactions = transactions_with_rates
@@ -294,22 +362,33 @@ def tax():
     # Convert USD values to EUR using current date
     current_date = datetime.now().strftime('%Y-%m-%d')
     
-    # Calculate EUR values for realized gains/losses
-    realized_gains_eur = convert_usd_to_eur(realized_gains_losses['total_gains'], current_date) or 0
-    realized_losses_eur = convert_usd_to_eur(realized_gains_losses['total_losses'], current_date) or 0
+    # Calculate EUR values for realized gains/losses using historical rates from individual transactions
+    realized_gains_eur = sum([
+        realized_gains_losses.get('stock_gains_eur', 0),
+        realized_gains_losses.get('option_gains_eur', 0),
+        realized_gains_losses.get('other_gains_eur', 0)
+    ])
+    realized_losses_eur = sum([
+        realized_gains_losses.get('stock_losses_eur', 0),
+        realized_gains_losses.get('option_losses_eur', 0),
+        realized_gains_losses.get('other_losses_eur', 0)
+    ])
     unrealized_gain_loss_eur = convert_usd_to_eur(unrealized_gains_losses['total_unrealized_gain_loss'], current_date) or 0
-    dividends_eur = convert_usd_to_eur(dividend_data['total_dividends'], current_date) or 0
-    fees_eur = convert_usd_to_eur(fees_data['total_fees'], current_date) or 0
+    dividends_eur = dividend_data.get('total_dividends_eur', 0)
+    fees_eur = fees_data.get('total_fees_eur', 0)
     
     # Use actual source tax from database (negative dividend entries)
     source_tax_usd = dividend_data['total_source_tax']
-    source_tax_eur = convert_usd_to_eur(source_tax_usd, current_date) or 0
+    source_tax_eur = dividend_data.get('total_source_tax_eur', 0)
     
-    # Calculate EUR values for German tax separation
-    stock_gains_eur = convert_usd_to_eur(realized_gains_losses.get('stock_gains', 0), current_date) or 0
-    stock_losses_eur = convert_usd_to_eur(realized_gains_losses.get('stock_losses', 0), current_date) or 0
-    other_gains_eur = convert_usd_to_eur(realized_gains_losses.get('other_gains', 0), current_date) or 0
-    other_losses_eur = convert_usd_to_eur(realized_gains_losses.get('other_losses', 0), current_date) or 0
+    # Calculate EUR values for German tax separation using historical rates from individual transactions
+    # This ensures consistency with the detailed transaction EUR values
+    stock_gains_eur = realized_gains_losses.get('stock_gains_eur', 0)
+    stock_losses_eur = realized_gains_losses.get('stock_losses_eur', 0)
+    option_gains_eur = realized_gains_losses.get('option_gains_eur', 0)
+    option_losses_eur = realized_gains_losses.get('option_losses_eur', 0)
+    other_gains_eur = realized_gains_losses.get('other_gains_eur', 0)
+    other_losses_eur = realized_gains_losses.get('other_losses_eur', 0)
     
     tax_summary = {
         'realized_gains': {
@@ -338,7 +417,7 @@ def tax():
         },
         'net_realized_gain_loss': {
             'usd': realized_gains_losses['net_gain_loss'],
-            'eur': convert_usd_to_eur(realized_gains_losses['net_gain_loss'], current_date) or 0
+            'eur': realized_gains_eur - realized_losses_eur
         },
         # German tax separation
         'stock_gains': {
@@ -352,6 +431,18 @@ def tax():
         'stock_net_gain_loss': {
             'usd': realized_gains_losses.get('stock_net_gain_loss', 0),
             'eur': stock_gains_eur - stock_losses_eur
+        },
+        'option_gains': {
+            'usd': realized_gains_losses.get('option_gains', 0),
+            'eur': option_gains_eur
+        },
+        'option_losses': {
+            'usd': realized_gains_losses.get('option_losses', 0),
+            'eur': option_losses_eur
+        },
+        'option_net_gain_loss': {
+            'usd': realized_gains_losses.get('option_gains', 0) - realized_gains_losses.get('option_losses', 0),
+            'eur': option_gains_eur - option_losses_eur
         },
         'other_gains': {
             'usd': realized_gains_losses.get('other_gains', 0),
@@ -1513,9 +1604,11 @@ def settings():
             cursor.execute('SELECT value FROM settings WHERE key = ?', ('finnhub_api_key',))
             result = cursor.fetchone()
             if result:
-                finnhub_api_key = result[0]
+                finnhub_api_key = result['value']  # Use column name instead of index
     except Exception as e:
         logger.error(f"Error loading settings: {e}")
+        # Log more details for debugging
+        logger.error(f"Traceback: {traceback.format_exc()}")
     
     return render_template('settings.html', finnhub_api_key=finnhub_api_key)
 
@@ -1689,6 +1782,18 @@ def init_db():
             )
         ''')
         
+        # Create stock_prices table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS stock_prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
+                price REAL NOT NULL,
+                source TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, source)
+            )
+        ''')
+        
         # Migration: Add Asset_Category column if it doesn't exist
         try:
             cursor.execute("PRAGMA table_info(transactions)")
@@ -1706,7 +1811,7 @@ def init_db():
 
 def _build_gains_query_conditions(symbol=None, year=None):
     """Build query conditions and parameters for gains calculation"""
-    conditions = ["Type = 'Trade'"]
+    conditions = ["(Type = 'Trade' OR Type = 'Receive Deliver')"]
     params = []
     
     if symbol:
@@ -1734,7 +1839,7 @@ def _group_transactions_by_symbol(transactions):
         if symbol_key not in symbol_transactions:
             symbol_transactions[symbol_key] = {'buys': [], 'sells': [], 'asset_category': trans_dict.get('Asset_Category', 'Unknown')}
         
-        if trans_dict['Action'] == 'BUY_TO_OPEN':
+        if trans_dict['Action'] in ['BUY_TO_OPEN', 'BUY_TO_CLOSE']:
             symbol_transactions[symbol_key]['buys'].append({
                 'date': trans_dict['Date'],
                 'quantity': abs(trans_dict['Quantity'] or 0),
@@ -1743,7 +1848,7 @@ def _group_transactions_by_symbol(transactions):
                 'fees': abs(trans_dict['Fees'] or 0) + abs(trans_dict['Commissions'] or 0),
                 'asset_category': trans_dict.get('Asset_Category', 'Unknown')
             })
-        elif trans_dict['Action'] == 'SELL_TO_CLOSE':
+        elif trans_dict['Action'] in ['SELL_TO_CLOSE', 'SELL_TO_OPEN']:
             symbol_transactions[symbol_key]['sells'].append({
                 'date': trans_dict['Date'],
                 'quantity': abs(trans_dict['Quantity'] or 0),
@@ -1758,7 +1863,7 @@ def _group_transactions_by_symbol(transactions):
 def _calculate_fifo_match(buy, sell, matched_qty, sell_qty):
     """Calculate gain/loss for a FIFO match between buy and sell"""
     cost_basis = (matched_qty / buy['quantity']) * (buy['total_cost'] + buy['fees']) if buy['quantity'] > 0 else 0
-    proceeds = (matched_qty / sell_qty) * (sell['total_proceeds'] - sell['fees']) if sell_qty > 0 else 0
+    proceeds = (matched_qty / sell_qty) * sell['total_proceeds'] if sell_qty > 0 else 0
     gain_loss = proceeds - cost_basis
     
     return {
@@ -1788,6 +1893,10 @@ def _process_fifo_gains(symbol_transactions):
                     matched_qty = buy['quantity']
                     match_result = _calculate_fifo_match(buy, sell, matched_qty, sell['quantity'])
                     
+                    # Get exchange rates for EUR conversion
+                    buy_rate = get_exchange_rate(buy['date'][:10]) or 1.0
+                    sell_rate = get_exchange_rate(sell['date'][:10]) or 1.0
+                    
                     detailed_transactions.append({
                         'symbol': symbol_key,
                         'buy_date': buy['date'],
@@ -1798,7 +1907,13 @@ def _process_fifo_gains(symbol_transactions):
                         'cost_basis': match_result['cost_basis'],
                         'proceeds': match_result['proceeds'],
                         'gain_loss': match_result['gain_loss'],
-                        'asset_category': buy.get('asset_category', 'Unknown')
+                        'asset_category': buy.get('asset_category', 'Unknown'),
+                        # EUR conversions (rate is 1 EUR = X USD, so divide USD by rate to get EUR)
+                        'buy_price_eur': buy['price'] / buy_rate,
+                        'sell_price_eur': sell['price'] / sell_rate,
+                        'cost_basis_eur': match_result['cost_basis'] / buy_rate,
+                        'proceeds_eur': match_result['proceeds'] / sell_rate,
+                        'gain_loss_eur': match_result['proceeds'] / sell_rate - match_result['cost_basis'] / buy_rate
                     })
                     
                     if match_result['gain_loss'] > 0:
@@ -1813,6 +1928,10 @@ def _process_fifo_gains(symbol_transactions):
                     matched_qty = remaining_sell_qty
                     match_result = _calculate_fifo_match(buy, sell, matched_qty, sell['quantity'])
                     
+                    # Get exchange rates for EUR conversion
+                    buy_rate = get_exchange_rate(buy['date'][:10]) or 1.0
+                    sell_rate = get_exchange_rate(sell['date'][:10]) or 1.0
+                    
                     detailed_transactions.append({
                         'symbol': symbol_key,
                         'buy_date': buy['date'],
@@ -1823,7 +1942,13 @@ def _process_fifo_gains(symbol_transactions):
                         'cost_basis': match_result['cost_basis'],
                         'proceeds': match_result['proceeds'],
                         'gain_loss': match_result['gain_loss'],
-                        'asset_category': buy.get('asset_category', 'Unknown')
+                        'asset_category': buy.get('asset_category', 'Unknown'),
+                        # EUR conversions (rate is 1 EUR = X USD, so divide USD by rate to get EUR)
+                        'buy_price_eur': buy['price'] / buy_rate,
+                        'sell_price_eur': sell['price'] / sell_rate,
+                        'cost_basis_eur': match_result['cost_basis'] / buy_rate,
+                        'proceeds_eur': match_result['proceeds'] / sell_rate,
+                        'gain_loss_eur': match_result['proceeds'] / sell_rate - match_result['cost_basis'] / buy_rate
                     })
                     
                     if match_result['gain_loss'] > 0:
@@ -1848,6 +1973,8 @@ def _process_fifo_gains_by_category(symbol_transactions):
     total_losses = 0
     stock_gains = 0
     stock_losses = 0
+    option_gains = 0
+    option_losses = 0
     other_gains = 0
     other_losses = 0
     detailed_transactions = []
@@ -1869,6 +1996,10 @@ def _process_fifo_gains_by_category(symbol_transactions):
                     
                     asset_category = buy.get('asset_category', 'Unknown')
                     
+                    # Get exchange rates for EUR conversion
+                    buy_rate = get_exchange_rate(buy['date'][:10]) or 1.0
+                    sell_rate = get_exchange_rate(sell['date'][:10]) or 1.0
+                    
                     detailed_transactions.append({
                         'symbol': symbol_key,
                         'buy_date': buy['date'],
@@ -1879,7 +2010,13 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         'cost_basis': match_result['cost_basis'],
                         'proceeds': match_result['proceeds'],
                         'gain_loss': match_result['gain_loss'],
-                        'asset_category': asset_category
+                        'asset_category': asset_category,
+                        # EUR conversions (rate is 1 EUR = X USD, so divide USD by rate to get EUR)
+                        'buy_price_eur': buy['price'] / buy_rate,
+                        'sell_price_eur': sell['price'] / sell_rate,
+                        'cost_basis_eur': match_result['cost_basis'] / buy_rate,
+                        'proceeds_eur': match_result['proceeds'] / sell_rate,
+                        'gain_loss_eur': match_result['proceeds'] / sell_rate - match_result['cost_basis'] / buy_rate
                     })
                     
                     # Categorize gains/losses for German tax
@@ -1887,6 +2024,8 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         total_gains += match_result['gain_loss']
                         if asset_category == 'Stock':
                             stock_gains += match_result['gain_loss']
+                        elif asset_category == 'Option':
+                            option_gains += match_result['gain_loss']
                         else:
                             other_gains += match_result['gain_loss']
                     else:
@@ -1894,6 +2033,8 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         total_losses += loss_amount
                         if asset_category == 'Stock':
                             stock_losses += loss_amount
+                        elif asset_category == 'Option':
+                            option_losses += loss_amount
                         else:
                             other_losses += loss_amount
                     
@@ -1906,6 +2047,10 @@ def _process_fifo_gains_by_category(symbol_transactions):
                     
                     asset_category = buy.get('asset_category', 'Unknown')
                     
+                    # Get exchange rates for EUR conversion
+                    buy_rate = get_exchange_rate(buy['date'][:10]) or 1.0
+                    sell_rate = get_exchange_rate(sell['date'][:10]) or 1.0
+                    
                     detailed_transactions.append({
                         'symbol': symbol_key,
                         'buy_date': buy['date'],
@@ -1916,7 +2061,13 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         'cost_basis': match_result['cost_basis'],
                         'proceeds': match_result['proceeds'],
                         'gain_loss': match_result['gain_loss'],
-                        'asset_category': asset_category
+                        'asset_category': asset_category,
+                        # EUR conversions (rate is 1 EUR = X USD, so divide USD by rate to get EUR)
+                        'buy_price_eur': buy['price'] / buy_rate,
+                        'sell_price_eur': sell['price'] / sell_rate,
+                        'cost_basis_eur': match_result['cost_basis'] / buy_rate,
+                        'proceeds_eur': match_result['proceeds'] / sell_rate,
+                        'gain_loss_eur': match_result['proceeds'] / sell_rate - match_result['cost_basis'] / buy_rate
                     })
                     
                     # Categorize gains/losses for German tax
@@ -1924,6 +2075,8 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         total_gains += match_result['gain_loss']
                         if asset_category == 'Stock':
                             stock_gains += match_result['gain_loss']
+                        elif asset_category == 'Option':
+                            option_gains += match_result['gain_loss']
                         else:
                             other_gains += match_result['gain_loss']
                     else:
@@ -1931,6 +2084,8 @@ def _process_fifo_gains_by_category(symbol_transactions):
                         total_losses += loss_amount
                         if asset_category == 'Stock':
                             stock_losses += loss_amount
+                        elif asset_category == 'Option':
+                            option_losses += loss_amount
                         else:
                             other_losses += loss_amount
                     
@@ -1948,9 +2103,18 @@ def _process_fifo_gains_by_category(symbol_transactions):
         'total_losses': total_losses,
         'stock_gains': stock_gains,
         'stock_losses': stock_losses,
+        'option_gains': option_gains,
+        'option_losses': option_losses,
         'other_gains': other_gains,
         'other_losses': other_losses,
-        'detailed_transactions': detailed_transactions
+        'detailed_transactions': detailed_transactions,
+        # Add EUR totals calculated from individual transactions
+        'stock_gains_eur': sum(tx['gain_loss_eur'] for tx in detailed_transactions if tx['asset_category'] == 'Stock' and tx['gain_loss_eur'] > 0),
+        'stock_losses_eur': sum(abs(tx['gain_loss_eur']) for tx in detailed_transactions if tx['asset_category'] == 'Stock' and tx['gain_loss_eur'] < 0),
+        'option_gains_eur': sum(tx['gain_loss_eur'] for tx in detailed_transactions if tx['asset_category'] == 'Option' and tx['gain_loss_eur'] > 0),
+        'option_losses_eur': sum(abs(tx['gain_loss_eur']) for tx in detailed_transactions if tx['asset_category'] == 'Option' and tx['gain_loss_eur'] < 0),
+        'other_gains_eur': sum(tx['gain_loss_eur'] for tx in detailed_transactions if tx['asset_category'] not in ['Stock', 'Option'] and tx['gain_loss_eur'] > 0),
+        'other_losses_eur': sum(abs(tx['gain_loss_eur']) for tx in detailed_transactions if tx['asset_category'] not in ['Stock', 'Option'] and tx['gain_loss_eur'] < 0)
     }
 
 def calculate_realized_gains_losses(symbol=None, year=None):
@@ -1990,9 +2154,19 @@ def calculate_realized_gains_losses(symbol=None, year=None):
         'stock_gains': gains_losses_result['stock_gains'],
         'stock_losses': gains_losses_result['stock_losses'],
         'stock_net_gain_loss': gains_losses_result['stock_gains'] - gains_losses_result['stock_losses'],
+        'option_gains': gains_losses_result['option_gains'],
+        'option_losses': gains_losses_result['option_losses'],
+        'option_net_gain_loss': gains_losses_result['option_gains'] - gains_losses_result['option_losses'],
         'other_gains': gains_losses_result['other_gains'],
         'other_losses': gains_losses_result['other_losses'],
-        'other_net_gain_loss': gains_losses_result['other_gains'] - gains_losses_result['other_losses']
+        'other_net_gain_loss': gains_losses_result['other_gains'] - gains_losses_result['other_losses'],
+        # EUR values from historical exchange rates
+        'stock_gains_eur': gains_losses_result['stock_gains_eur'],
+        'stock_losses_eur': gains_losses_result['stock_losses_eur'],
+        'option_gains_eur': gains_losses_result['option_gains_eur'],
+        'option_losses_eur': gains_losses_result['option_losses_eur'],
+        'other_gains_eur': gains_losses_result['other_gains_eur'],
+        'other_losses_eur': gains_losses_result['other_losses_eur']
     }
 
 # Simple in-memory cache for stock prices (valid for 5 minutes)
@@ -2052,9 +2226,9 @@ def _save_stock_price_to_db(symbol, price, source):
             current_time = datetime.now().isoformat()
             cursor.execute('''
                 INSERT OR REPLACE INTO stock_prices 
-                (symbol, price, timestamp, source, created_at)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (symbol.upper(), price, current_time, source, current_time))
+                (symbol, price, timestamp, source)
+                VALUES (?, ?, ?, ?)
+            ''', (symbol.upper(), price, current_time, source))
             conn.commit()
             print(f"Saved {symbol} price ${price} to database from {source}")
     except Exception as e:
@@ -2413,6 +2587,22 @@ def get_dividend_data(year=None):
         cursor.execute(total_positive_query, params)
         total_positive_result = cursor.fetchone()
         total_dividends = total_positive_result['total_dividends'] or 0
+        
+        # Calculate EUR values for positive dividends using historical exchange rates
+        positive_eur_query = f"""
+            SELECT Date, Value
+            FROM transactions 
+            WHERE {positive_where_clause}
+        """
+        
+        cursor.execute(positive_eur_query, params)
+        positive_transactions = cursor.fetchall()
+        
+        total_dividends_eur = 0
+        for transaction in positive_transactions:
+            eur_rate = get_exchange_rate(transaction['Date'])
+            if eur_rate:
+                total_dividends_eur += transaction['Value'] / eur_rate
     
         # Get negative dividends (source tax withholdings)
         negative_conditions = base_conditions + ["Value < 0"]
@@ -2439,10 +2629,28 @@ def get_dividend_data(year=None):
         cursor.execute(total_negative_query, params)
         total_negative_result = cursor.fetchone()
         total_source_tax = total_negative_result['total_source_tax'] or 0
+        
+        # Calculate EUR values for source tax using historical exchange rates
+        negative_eur_query = f"""
+            SELECT Date, Value
+            FROM transactions 
+            WHERE {negative_where_clause}
+        """
+        
+        cursor.execute(negative_eur_query, params)
+        negative_transactions = cursor.fetchall()
+        
+        total_source_tax_eur = 0
+        for transaction in negative_transactions:
+            eur_rate = get_exchange_rate(transaction['Date'])
+            if eur_rate:
+                total_source_tax_eur += abs(transaction['Value']) / eur_rate
     
     return {
         'total_dividends': total_dividends,
+        'total_dividends_eur': total_dividends_eur,
         'total_source_tax': total_source_tax,
+        'total_source_tax_eur': total_source_tax_eur,
         'dividend_by_symbol': dividend_data,
         'source_tax_by_symbol': source_tax_data
     }
@@ -2475,9 +2683,30 @@ def get_fees_data(year=None):
         cursor.execute(query, params)
         result = cursor.fetchone()
     
-    total_fees = (result['total_fees'] or 0) + (result['total_commissions'] or 0)
+        total_fees = (result['total_fees'] or 0) + (result['total_commissions'] or 0)
+        
+        # Calculate EUR values for fees using historical exchange rates
+        eur_query = f"""
+            SELECT Date, Fees, Commissions
+            FROM transactions 
+            WHERE {where_clause} AND (Fees IS NOT NULL OR Commissions IS NOT NULL)
+        """
+        
+        cursor.execute(eur_query, params)
+        fee_transactions = cursor.fetchall()
+        
+        total_fees_eur = 0
+        for transaction in fee_transactions:
+            eur_rate = get_exchange_rate(transaction['Date'])
+            if eur_rate:
+                fees = abs(transaction['Fees'] or 0)
+                commissions = abs(transaction['Commissions'] or 0)
+                total_fees_eur += (fees + commissions) / eur_rate
     
-    return {'total_fees': total_fees}
+        return {
+            'total_fees': total_fees,
+            'total_fees_eur': total_fees_eur
+        }
 
 def get_available_tax_years(max_years=10):
     """Get available years for tax reporting dropdown
